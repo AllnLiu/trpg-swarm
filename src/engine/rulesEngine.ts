@@ -135,19 +135,8 @@ export function resolveDnD5eAttack(opts: DnD5eAttackOptions): DnD5eAttackResolut
     const baseFormula = action.damageFormula ?? '1d8+3';
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = Math.max(1, damageRoll.total);
-
-    defender.hp = Math.max(0, defender.hp - totalDamage);
-    if (defender.hp === 0) {
-      if (defender.faction === 'enemy') {
-        defender.isAlive = false;
-      } else {
-        if (!defender.conditions.includes('unconscious')) {
-          defender.conditions.push('unconscious');
-        }
-        defender.deathSaves = defender.deathSaves ?? { successes: 0, failures: 0, isStable: false };
-      }
-    }
+    totalDamage = takeDnDDamage(defender, Math.max(1, damageRoll.total), action.damageType);
+    if (defender.hp === 0) dropAtZeroHp(defender);
 
     if (defender.concentratingOn && defender.hp > 0) {
       const concCheck = resolveConcentrationCheck(defender, totalDamage, rng);
@@ -227,10 +216,8 @@ export function resolveDnD5eSavingThrow(
     } else {
       damageTaken = damageRoll.total;
     }
-    target.hp = Math.max(0, target.hp - damageTaken);
-    if (target.hp === 0 && target.faction === 'enemy') {
-      target.isAlive = false;
-    }
+    damageTaken = takeDnDDamage(target, damageTaken, action.damageType);
+    if (target.hp === 0) dropAtZeroHp(target);
   }
 
   if (!succeeded && action.appliesCondition) {
@@ -350,7 +337,7 @@ export type CoCSuccessLevel =
   | 'Failure'
   | 'Fumble';
 
-const COC_LEVEL_RANK: Record<CoCSuccessLevel, number> = {
+export const COC_LEVEL_RANK: Record<CoCSuccessLevel, number> = {
   Fumble: 0,
   Failure: 1,
   Regular: 2,
@@ -578,6 +565,84 @@ export interface CoC7eOpposedCombatResolution {
   narrative: string;
 }
 
+/**
+ * CoC 7e damage per references/coc7e-rules.md: a single hit of at least half max HP is a
+ * major wound. At 0 HP an investigator with a major wound is dying (CON check each turn,
+ * stabilised by First Aid or Medicine); without one the investigator is only unconscious.
+ * Monsters (enemy faction) still die at 0 HP.
+ */
+export function applyCoC7eDamage(target: Combatant, damage: number): void {
+  target.hp = Math.max(0, target.hp - damage);
+  if (damage >= Math.ceil(target.maxHp / 2) && !target.conditions.includes('major_wound')) {
+    target.conditions.push('major_wound');
+  }
+  if (target.hp > 0) return;
+  if (target.faction === 'enemy') {
+    target.isAlive = false;
+    return;
+  }
+  if (!target.conditions.includes('unconscious')) target.conditions.push('unconscious');
+  if (target.conditions.includes('major_wound') && !target.conditions.includes('dying')) {
+    target.conditions.push('dying');
+  }
+}
+
+/** Temporary HP soak damage first; returns the damage that is left for hp. */
+export function absorbTempHp(target: Combatant, damage: number): number {
+  const soaked = Math.min(target.tempHp ?? 0, damage);
+  if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
+  return damage - soaked;
+}
+
+/** D&D 0 HP: enemies die, party members fall unconscious and start death saves. */
+function dropAtZeroHp(c: Combatant): void {
+  if (c.faction === 'enemy') {
+    c.isAlive = false;
+    return;
+  }
+  if (c.conditions.includes('unconscious') && c.deathSaves) return;
+  if (!c.conditions.includes('unconscious')) c.conditions.push('unconscious');
+  c.deathSaves = { successes: 0, failures: 0, isStable: false };
+}
+
+/** Apply D&D damage to a target: type modifiers, then temp HP, then hp. Returns the adjusted damage. */
+export function takeDnDDamage(target: Combatant, amount: number, damageType: string | undefined): number {
+  const adjusted = adjustDamageForType(amount, damageType, target);
+  target.hp = Math.max(0, target.hp - absorbTempHp(target, adjusted));
+  return adjusted;
+}
+
+/** D&D 5e damage-type modifiers: immunity -> 0, resistance -> half, vulnerability -> double (both cancel). */
+export function adjustDamageForType(damage: number, damageType: string | undefined, target: Combatant): number {
+  if (!damageType) return damage;
+  const type = damageType.toLowerCase();
+  if (target.stats.immunities?.includes(type)) return 0;
+  const resisted = target.stats.resistances?.includes(type) ?? false;
+  const vulnerable = target.stats.vulnerabilities?.includes(type) ?? false;
+  if (resisted && !vulnerable) return Math.floor(damage / 2);
+  if (vulnerable && !resisted) return damage * 2;
+  return damage;
+}
+
+/** CoC 7e dying turn: a CON check each round; a failure is death. Mirrors resolveDnD5eDeathSave. */
+export function resolveCoC7eDeathCheck(
+  combatant: Combatant,
+  rng: DeterministicRNG = getGlobalRng()
+): { isDead: boolean; narrative: string } {
+  const con = resolveCoC7eCheck({ skill: combatant.stats.con ?? 50, rng });
+  if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+    return { isDead: false, narrative: `${combatant.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 成功，勉強撐過這一輪。` };
+  }
+  combatant.isAlive = false;
+  return { isDead: true, narrative: `${combatant.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 失敗，【死亡】。` };
+}
+
+/** An ally back above 0 HP is no longer downed: clear unconscious and dying, reset death saves. */
+export function clearDowned(c: Combatant): void {
+  c.conditions = c.conditions.filter((x) => x !== 'unconscious' && x !== 'dying');
+  c.deathSaves = { successes: 0, failures: 0, isStable: true };
+}
+
 export function resolveCoC7eOpposedCombat(
   attacker: Combatant,
   defender: Combatant,
@@ -627,12 +692,10 @@ export function resolveCoC7eOpposedCombat(
     } else {
       damageDealt = rollDice(baseDamageFormula, rng).total;
     }
-    defender.hp = Math.max(0, defender.hp - damageDealt);
-    if (defender.hp === 0) defender.isAlive = false;
+    applyCoC7eDamage(defender, damageDealt);
   } else if (winner === 'defender' && defenseMode === 'fight_back') {
     damageDealt = rollDice('1d4+1', rng).total;
-    attacker.hp = Math.max(0, attacker.hp - damageDealt);
-    if (attacker.hp === 0) attacker.isAlive = false;
+    applyCoC7eDamage(attacker, damageDealt);
   }
 
   const narrative = `CoC 7e 對抗近戰：${attacker.name} 攻擊 [${attackerCheck.roll.total}/${attackerCheck.level}] vs ${defender.name} ${defenseMode === 'dodge' ? '閃避' : '反擊'} [${defenderCheck.roll.total}/${defenderCheck.level}] => ${

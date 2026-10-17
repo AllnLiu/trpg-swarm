@@ -2,6 +2,7 @@
 
 // scripts/trpg-cli.ts
 import * as path3 from "node:path";
+import * as fs3 from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // src/engine/dice.ts
@@ -282,18 +283,8 @@ function resolveDnD5eAttack(opts) {
     const baseFormula = action.damageFormula ?? "1d8+3";
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = Math.max(1, damageRoll.total);
-    defender.hp = Math.max(0, defender.hp - totalDamage);
-    if (defender.hp === 0) {
-      if (defender.faction === "enemy") {
-        defender.isAlive = false;
-      } else {
-        if (!defender.conditions.includes("unconscious")) {
-          defender.conditions.push("unconscious");
-        }
-        defender.deathSaves = defender.deathSaves ?? { successes: 0, failures: 0, isStable: false };
-      }
-    }
+    totalDamage = takeDnDDamage(defender, Math.max(1, damageRoll.total), action.damageType);
+    if (defender.hp === 0) dropAtZeroHp(defender);
     if (defender.concentratingOn && defender.hp > 0) {
       const concCheck = resolveConcentrationCheck(defender, totalDamage, rng);
       concentrationBroken = !concCheck.maintained;
@@ -343,10 +334,8 @@ function resolveDnD5eSavingThrow(caster, target, action, halfOnSave = true, rng 
     } else {
       damageTaken = damageRoll.total;
     }
-    target.hp = Math.max(0, target.hp - damageTaken);
-    if (target.hp === 0 && target.faction === "enemy") {
-      target.isAlive = false;
-    }
+    damageTaken = takeDnDDamage(target, damageTaken, action.damageType);
+    if (target.hp === 0) dropAtZeroHp(target);
   }
   if (!succeeded && action.appliesCondition) {
     conditionApplied = action.appliesCondition;
@@ -551,6 +540,62 @@ function resolveCoC7eSanity(currentSan, sanLossFormula = "1/1d6", intScore = 65,
     narrative
   };
 }
+function applyCoC7eDamage(target, damage) {
+  target.hp = Math.max(0, target.hp - damage);
+  if (damage >= Math.ceil(target.maxHp / 2) && !target.conditions.includes("major_wound")) {
+    target.conditions.push("major_wound");
+  }
+  if (target.hp > 0) return;
+  if (target.faction === "enemy") {
+    target.isAlive = false;
+    return;
+  }
+  if (!target.conditions.includes("unconscious")) target.conditions.push("unconscious");
+  if (target.conditions.includes("major_wound") && !target.conditions.includes("dying")) {
+    target.conditions.push("dying");
+  }
+}
+function absorbTempHp(target, damage) {
+  const soaked = Math.min(target.tempHp ?? 0, damage);
+  if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
+  return damage - soaked;
+}
+function dropAtZeroHp(c) {
+  if (c.faction === "enemy") {
+    c.isAlive = false;
+    return;
+  }
+  if (c.conditions.includes("unconscious") && c.deathSaves) return;
+  if (!c.conditions.includes("unconscious")) c.conditions.push("unconscious");
+  c.deathSaves = { successes: 0, failures: 0, isStable: false };
+}
+function takeDnDDamage(target, amount, damageType) {
+  const adjusted = adjustDamageForType(amount, damageType, target);
+  target.hp = Math.max(0, target.hp - absorbTempHp(target, adjusted));
+  return adjusted;
+}
+function adjustDamageForType(damage, damageType, target) {
+  if (!damageType) return damage;
+  const type = damageType.toLowerCase();
+  if (target.stats.immunities?.includes(type)) return 0;
+  const resisted = target.stats.resistances?.includes(type) ?? false;
+  const vulnerable = target.stats.vulnerabilities?.includes(type) ?? false;
+  if (resisted && !vulnerable) return Math.floor(damage / 2);
+  if (vulnerable && !resisted) return damage * 2;
+  return damage;
+}
+function resolveCoC7eDeathCheck(combatant, rng = getGlobalRng()) {
+  const con = resolveCoC7eCheck({ skill: combatant.stats.con ?? 50, rng });
+  if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+    return { isDead: false, narrative: `${combatant.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u6210\u529F\uFF0C\u52C9\u5F37\u6490\u904E\u9019\u4E00\u8F2A\u3002` };
+  }
+  combatant.isAlive = false;
+  return { isDead: true, narrative: `${combatant.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u5931\u6557\uFF0C\u3010\u6B7B\u4EA1\u3011\u3002` };
+}
+function clearDowned(c) {
+  c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
+  c.deathSaves = { successes: 0, failures: 0, isStable: true };
+}
 function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng()) {
   const atkSkill = attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
   const defSkill = defenseMode === "dodge" ? defender.stats.skills?.["Dodge"] ?? 45 : defender.stats.skills?.["Fighting (Brawl)"] ?? 50;
@@ -582,12 +627,10 @@ function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", ba
     } else {
       damageDealt = rollDice(baseDamageFormula, rng).total;
     }
-    defender.hp = Math.max(0, defender.hp - damageDealt);
-    if (defender.hp === 0) defender.isAlive = false;
+    applyCoC7eDamage(defender, damageDealt);
   } else if (winner === "defender" && defenseMode === "fight_back") {
     damageDealt = rollDice("1d4+1", rng).total;
-    attacker.hp = Math.max(0, attacker.hp - damageDealt);
-    if (attacker.hp === 0) attacker.isAlive = false;
+    applyCoC7eDamage(attacker, damageDealt);
   }
   const narrative = `CoC 7e \u5C0D\u6297\u8FD1\u6230\uFF1A${attacker.name} \u653B\u64CA [${attackerCheck.roll.total}/${attackerCheck.level}] vs ${defender.name} ${defenseMode === "dodge" ? "\u9583\u907F" : "\u53CD\u64CA"} [${defenderCheck.roll.total}/${defenderCheck.level}] => ${winner === "attacker" ? `${attacker.name} \u52DD\u51FA\uFF01${isImpale ? "\u3010\u6975\u9650\u8CAB\u7A7F Impale\uFF01\u3011" : ""}\u5C0D ${defender.name} \u9020\u6210 ${damageDealt} \u9EDE\u50B7\u5BB3\uFF01` : winner === "defender" ? defenseMode === "dodge" ? `${defender.name} \u9A5A\u96AA\u9583\u907F\u4E86\u653B\u64CA\uFF01` : `${defender.name} \u53CD\u64CA\u6210\u529F\uFF01\u5C0D ${attacker.name} \u9020\u6210 ${damageDealt} \u9EDE\u50B7\u5BB3\uFF01` : "\u96D9\u65B9\u7686\u672A\u547D\u4E2D\u3002"}`;
   return {
@@ -922,7 +965,7 @@ function computeSoftmaxProbabilities(utilities, temperature = 0.65) {
   const sumExp = exps.reduce((acc, v) => acc + v, 0);
   return exps.map((e) => e / sumExp);
 }
-function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGlobalRng(), preferredActionId) {
+function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGlobalRng(), preferredActionId, preferredTargetId) {
   const actor = state.combatants[actorId];
   if (!actor) {
     throw new Error(`Combatant "${actorId}" not found in WorldState.`);
@@ -1047,13 +1090,23 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
       break;
     }
   }
-  if (preferredActionId) {
-    const override = candidates.find((c) => c.id === preferredActionId) ?? [...candidates].filter((c) => c.action.id === preferredActionId).sort((a, b2) => b2.totalUtility - a.totalUtility)[0];
+  if (preferredActionId || preferredTargetId) {
+    const pool = candidates.filter(
+      (c) => (!preferredActionId || c.id === preferredActionId || c.action.id === preferredActionId) && (!preferredTargetId || c.targetId === preferredTargetId)
+    );
+    const override = pool.reduce(
+      (best, c) => !best || c.totalUtility > best.totalUtility ? c : best,
+      void 0
+    );
     if (!override) {
-      const allActionIds = candidates.map((c) => c.action.id);
-      const legalActionIds = allActionIds.filter((id, i) => allActionIds.indexOf(id) === i);
+      const unique = (ids) => [...new Set(ids)];
+      const legalActionIds = unique(candidates.map((c) => c.action.id));
+      const legalTargetIds = unique(
+        candidates.filter((c) => !preferredActionId || c.action.id === preferredActionId).map((c) => c.targetId).filter((id) => Boolean(id))
+      );
+      const actionOk = !preferredActionId || legalActionIds.includes(preferredActionId);
       throw new Error(
-        `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). Legal action ids: ${legalActionIds.join(", ")}. Re-run ai-decide for current candidates.`
+        (actionOk ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. ` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) + `Legal action ids: ${legalActionIds.join(", ")}. Legal target ids: ${legalTargetIds.join(", ")}. Re-run ai-decide for current candidates.`
       );
     }
     selectedCandidate = override;
@@ -1076,6 +1129,26 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
 // src/engine/stateStore.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
+
+// src/engine/types.ts
+var CONDITION_TYPES = [
+  "prone",
+  "restrained",
+  "blessed",
+  "frightened",
+  "poisoned",
+  "stunned",
+  "unconscious",
+  "dodging",
+  "concentrating",
+  "major_wound",
+  "dying",
+  "madness_phobia",
+  "madness_mania",
+  "madness_hallucination"
+];
+
+// src/engine/stateStore.ts
 var WORKING_MEMORY_WINDOW = 12;
 function recordEpisodicEvent(state, event) {
   const fullEvent = {
@@ -1669,7 +1742,7 @@ function createDefaultEncounter(system = "dnd5e", seed = 42) {
   });
   return state;
 }
-function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredActionId) {
+function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredActionId, preferredTargetId) {
   const rng = new DeterministicRNG(state.rngSeed + state.turn * 101);
   state.rngSeed = rng.getSeed();
   let actorId = overrideActorId;
@@ -1688,26 +1761,22 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     throw new Error("No living combatants available to take a turn.");
   }
   const actor = state.combatants[actorId];
+  fireVillainActions(state, actor.id);
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "dnd5e") {
     const ds = resolveDnD5eDeathSave(actor, rng);
-    const decisionReport2 = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: "death_save",
-      diceRoll: ds.roll,
-      narrativeSummary: ds.narrative
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport: decisionReport2,
-      resolutionNarrative: ds.narrative,
-      eventRecorded: evt
-    };
+    return finishDownedTurn(state, actor, ds.narrative, temperature, preferredActionId, ds.roll);
   }
-  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
+  if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "coc7e") {
+    const dying = actor.conditions.includes("dying");
+    let narrative = `${actor.name} \u660F\u8FF7\u4E0D\u9192\uFF0C\u7121\u6CD5\u884C\u52D5\u3002`;
+    if (dying) {
+      const check = resolveCoC7eDeathCheck(actor, rng);
+      narrative = check.narrative;
+      if (check.isDead) upsertSemanticFact(state, actor.id, "status", "dead", "npc");
+    }
+    return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
+  }
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId, preferredTargetId);
   const chosen = decisionReport.selectedCandidate;
   const action = chosen.action;
   actor.position = { ...chosen.moveTo };
@@ -1719,14 +1788,21 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
   }
   const target = chosen.targetId ? state.combatants[chosen.targetId] : void 0;
   let resolutionNarrative = "";
-  if (action.type === "heal" && target) {
+  if (action.type === "heal" && target && state.ruleSystem === "coc7e" && action.attackBonus !== void 0) {
+    const check = resolveCoC7eCheck({ skill: action.attackBonus, rng });
+    if (check.levelRank < COC_LEVEL_RANK.Regular) {
+      resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u5931\u6557\uFF0C\u6C92\u80FD\u7A69\u5B9A\u50B7\u52E2\u3002`;
+    } else {
+      const prevHp = target.hp;
+      target.hp = Math.min(target.maxHp, target.hp + Math.max(1, rollDice(action.healFormula ?? "1", rng).total));
+      if (prevHp === 0) clearDowned(target);
+      resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u6210\u529F\uFF0C\u50B7\u52E2\u7A69\u5B9A (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
+    }
+  } else if (action.type === "heal" && target) {
     const healRoll = rollDice(action.healFormula ?? "1d8+3", rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
-    if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== "unconscious");
-      target.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prevHp === 0 && target.hp > 0) clearDowned(target);
     resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u5C55\u3010${action.name}\u3011\u6062\u5FA9 ${target.hp - prevHp} \u9EDE HP (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
   } else if (action.type === "buff" && target) {
     if (action.appliesCondition && !target.conditions.includes(action.appliesCondition)) {
@@ -1831,6 +1907,101 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     eventRecorded
   };
 }
+function applyDelta(current, spec, min, max, label) {
+  const m = /^([+\-=]?)(\d+)$/.exec(spec.trim());
+  if (!m) throw new Error(`Invalid ${label} value "${spec}". Use +N, -N, =N or N.`);
+  const n = Number(m[2]);
+  const next = m[1] === "+" ? current + n : m[1] === "-" ? current - n : n;
+  return Math.min(max, Math.max(min, next));
+}
+function adjustCombatant(state, actorId, opts) {
+  const c = state.combatants[actorId];
+  if (!c) {
+    throw new Error(`Unknown combatant "${actorId}". Valid ids: ${Object.keys(state.combatants).join(", ")}`);
+  }
+  if (!c.isAlive) throw new Error(`${c.name} (${c.id}) is dead and cannot be adjusted.`);
+  const log = [];
+  const known = CONDITION_TYPES;
+  for (const cond of [...opts.addConditions ?? [], ...opts.removeConditions ?? []]) {
+    if (!known.includes(cond)) {
+      throw new Error(`Unknown condition "${cond}". Valid conditions: ${known.join(", ")}`);
+    }
+  }
+  if (opts.hp !== void 0) {
+    const prev = c.hp;
+    c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, "hp");
+    if (prev === 0 && c.hp > 0) clearDowned(c);
+    log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
+  }
+  if (opts.tempHp !== void 0) {
+    c.tempHp = Math.max(0, Math.floor(opts.tempHp));
+    log.push(`\u81E8\u6642 HP -> ${c.tempHp}`);
+  }
+  if (opts.san !== void 0) {
+    const prev = c.san;
+    c.san = applyDelta(c.san, opts.san, 0, c.maxSan, "san");
+    log.push(`SAN ${prev} -> ${c.san}/${c.maxSan}`);
+  }
+  if (opts.luck !== void 0) {
+    c.stats.luck = Math.max(0, Math.floor(opts.luck));
+    log.push(`\u5E78\u904B -> ${c.stats.luck}`);
+  }
+  for (const cond of opts.addConditions ?? []) {
+    if (!c.conditions.includes(cond)) c.conditions.push(cond);
+    log.push(`+\u72C0\u614B ${cond}`);
+  }
+  for (const cond of opts.removeConditions ?? []) {
+    c.conditions = c.conditions.filter((x) => x !== cond);
+    log.push(`-\u72C0\u614B ${cond}`);
+  }
+  recordEpisodicEvent(state, {
+    actorId: c.id,
+    actorName: c.name,
+    actionType: "adjust",
+    narrativeSummary: `\u3010\u624B\u52D5\u8ABF\u6574\u3011${c.name}\uFF1A${log.join("\uFF1B")}`
+  });
+  return log;
+}
+function finishDownedTurn(state, actor, narrative, temperature, preferredActionId, diceRoll) {
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
+  const evt = recordEpisodicEvent(state, {
+    actorId: actor.id,
+    actorName: actor.name,
+    actionType: "death_save",
+    diceRoll,
+    narrativeSummary: narrative
+  });
+  advanceTurnCounters(state);
+  return {
+    actorId: actor.id,
+    actorName: actor.name,
+    decisionReport,
+    resolutionNarrative: narrative,
+    eventRecorded: evt
+  };
+}
+function fireVillainActions(state, actorId) {
+  for (const va of state.villainActions ?? []) {
+    if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
+    va.fired = true;
+    const arrivals = [];
+    for (const id of va.summons ?? []) {
+      const unit = state.reserve?.[id];
+      if (!unit) continue;
+      state.combatants[id] = unit;
+      delete state.reserve[id];
+      state.initiativeOrder.push(id);
+      arrivals.push(unit.name);
+    }
+    const owner = state.combatants[actorId];
+    recordEpisodicEvent(state, {
+      actorId,
+      actorName: owner?.name ?? actorId,
+      actionType: "villain_action",
+      narrativeSummary: `\u3010Boss \u5C08\u5C6C\u884C\u52D5\uFF1A${va.name}\u3011${va.effect}${arrivals.length ? ` \u767B\u5834\uFF1A${arrivals.join("\u3001")}\u3002` : ""}`
+    });
+  }
+}
 function advanceTurnCounters(state) {
   state.turn += 1;
   state.activeActorIndex = (state.activeActorIndex + 1) % state.initiativeOrder.length;
@@ -1916,7 +2087,7 @@ function buildMapFromArea(area) {
     }
   }
   for (const hazard of area.trapsAndHazards ?? []) {
-    for (const coord of [hazard.coord, ...hazard.coords ?? []]) {
+    for (const coord of [hazard.coord, hazard.location, ...hazard.coords ?? []]) {
       if (coord && coord.y >= 0 && coord.y < height && coord.x >= 0 && coord.x < width) {
         cells[coord.y][coord.x] = "hazard";
       }
@@ -1932,7 +2103,8 @@ function dndAttackToAction(attack) {
     type: tiles > 1 ? "ranged" : "melee",
     range: tiles,
     attackBonus: attack.bonus,
-    damageFormula: attack.damage
+    damageFormula: attack.damage,
+    damageType: attack.damageType?.toLowerCase()
   };
 }
 function cocAttackToAction(attack) {
@@ -1969,14 +2141,23 @@ function baseCombatant(partial) {
     ...partial
   };
 }
-function campaignBookToWorldState(book, seed = 42) {
+var COC_HEAL_SKILLS = [
+  { regex: /first aid|急救/i, id: "first_aid" },
+  { regex: /medicine|醫學/i, id: "medicine" }
+];
+function campaignBookToWorldState(book, seed = 42, sceneOverride) {
   const system = (book.system ?? "dnd5e").toLowerCase();
   if (!["dnd5e", "coc7e", "pbta"].includes(system)) {
     throw new Error(`Unsupported campaign system "${book.system}" (expected dnd5e | coc7e | pbta).`);
   }
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  const sceneId = book.sessionState?.sceneId;
-  const area = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
+  const matched = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId);
+  if (sceneOverride && !matched) {
+    const valid = areas.map((a) => a.sceneId ?? a.areaId).join(", ");
+    throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
+  }
+  const area = matched ?? areas[0];
   const map = buildMapFromArea(area);
   const combatants = {};
   const party = book.party.map((member, idx) => {
@@ -1988,6 +2169,20 @@ function campaignBookToWorldState(book, seed = 42) {
       for (const action of actions2) {
         if (action.cocSkillName && action.attackBonus !== void 0) {
           skills[action.cocSkillName] = action.attackBonus;
+        }
+      }
+      for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
+        const kind = COC_HEAL_SKILLS.find((h) => h.regex.test(skillName))?.id;
+        if (kind && !actions2.some((a) => a.id === kind)) {
+          actions2.push({
+            id: kind,
+            name: skillName,
+            type: "heal",
+            range: 1,
+            healFormula: "1",
+            cocSkillName: skillName,
+            attackBonus: percentage
+          });
         }
       }
       return baseCombatant({
@@ -2034,6 +2229,31 @@ function campaignBookToWorldState(book, seed = 42) {
         });
       }
     }
+    const castingScore = member.spellcasting?.ability ? abilities[member.spellcasting.ability]?.score : void 0;
+    const castingMod = castingScore !== void 0 ? getAbilityModifier(castingScore) : 0;
+    const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
+    const healSpells = {
+      "cure wounds": { id: "cure_wounds", name: "\u7642\u50B7\u8853 (Cure Wounds)", range: 1, dice: "1d8" },
+      "healing word": { id: "healing_word", name: "\u6CBB\u7652\u771F\u8A00 (Healing Word)", range: 12, dice: "1d4" }
+    };
+    for (const spell of member.spellcasting?.preparedSpells ?? []) {
+      const def = healSpells[spell.toLowerCase()];
+      if (def && !actions.some((a) => a.id === def.id)) {
+        actions.push({
+          id: def.id,
+          name: def.name,
+          type: "heal",
+          range: def.range,
+          healFormula: `${def.dice}${modSuffix}`,
+          spellLevel: 1
+        });
+      }
+    }
+    const spellSlots = {};
+    for (const [level, slot] of Object.entries(member.spellcasting?.slots ?? {})) {
+      const max = slot.max ?? slot.current ?? 0;
+      spellSlots[Number(level)] = { current: slot.current ?? max, max };
+    }
     return baseCombatant({
       id: member.id,
       name: member.name,
@@ -2056,7 +2276,8 @@ function campaignBookToWorldState(book, seed = 42) {
         wis: abilities.WIS?.score,
         cha: abilities.CHA?.score,
         proficiencyBonus: member.proficiencyBonus ?? 2,
-        skills: member.skills
+        skills: member.skills,
+        spellSlots: Object.keys(spellSlots).length > 0 ? spellSlots : void 0
       },
       actions
     });
@@ -2089,10 +2310,39 @@ function campaignBookToWorldState(book, seed = 42) {
       ac: encounter.ac ?? encounter.armor ?? 12,
       speed: encounter.speed ? Math.max(2, Math.round(encounter.speed / 5)) : Math.max(2, Math.round((encounter.mov ?? 8) / 2)),
       initiative: encounter.dex ? Math.round(encounter.dex / 20) : 2,
-      stats: { dex: encounter.dex, skills: Object.keys(skills).length > 0 ? skills : void 0 },
+      stats: {
+        dex: encounter.dex,
+        skills: Object.keys(skills).length > 0 ? skills : void 0,
+        resistances: encounter.resistances?.map((t) => t.toLowerCase()),
+        immunities: encounter.immunities?.map((t) => t.toLowerCase()),
+        vulnerabilities: encounter.vulnerabilities?.map((t) => t.toLowerCase())
+      },
       actions
     });
   });
+  const villainActions = [];
+  const reserve = {};
+  for (const encounter of area?.encounters ?? []) {
+    const ownerId = encounter.entityId ?? slugify(encounter.name);
+    for (const va of encounter.villainActions ?? []) {
+      const effect = va.effect ?? "";
+      const summons = [];
+      if (/召喚|summon/i.test(effect)) {
+        for (const m of effect.matchAll(/x:\s*(\d+)\s*,\s*y:\s*(\d+)/gi)) {
+          const [x, y] = [Number(m[1]), Number(m[2])];
+          const unit = Object.values(combatants).find(
+            (c) => c.faction === "enemy" && c.id !== ownerId && c.position.x === x && c.position.y === y
+          );
+          if (unit && !summons.includes(unit.id)) summons.push(unit.id);
+        }
+      }
+      for (const id of summons) {
+        reserve[id] = combatants[id];
+        delete combatants[id];
+      }
+      villainActions.push({ ownerId, round: va.round ?? 1, name: va.name ?? "Villain action", effect, summons });
+    }
+  }
   const initiativeOrder = Object.values(combatants).sort((a, b) => b.initiative - a.initiative || (a.faction === "party" ? -1 : 1)).map((c) => c.id);
   const state = {
     campaignName: book.title,
@@ -2112,7 +2362,9 @@ function campaignBookToWorldState(book, seed = 42) {
     combatants,
     workingMemory: [],
     episodicLog: [],
-    semanticFacts: []
+    semanticFacts: [],
+    villainActions: villainActions.length > 0 ? villainActions : void 0,
+    reserve: Object.keys(reserve).length > 0 ? reserve : void 0
   };
   for (const [flag, value] of Object.entries(book.sessionState?.questFlags ?? {})) {
     upsertSemanticFact(state, flag, "questFlag", String(value), "quest");
@@ -2130,24 +2382,24 @@ function campaignBookToWorldState(book, seed = 42) {
   });
   return state;
 }
-function importWorldState(filePath, seed = 42) {
+function importWorldState(filePath, seed = 42, sceneOverride) {
   const abs = path2.resolve(filePath);
   const raw = JSON.parse(fs2.readFileSync(abs, "utf-8"));
   if (raw && typeof raw === "object" && "combatants" in raw && "initiativeOrder" in raw && "ruleSystem" in raw) {
     return raw;
   }
-  return campaignBookToWorldState(raw, seed);
+  return campaignBookToWorldState(raw, seed, sceneOverride);
 }
 
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
-  "crimson-crypt": "campaign-crimson-crypt.json",
-  crimson: "campaign-crimson-crypt.json",
-  dnd5e: "campaign-crimson-crypt.json",
-  "arkham-shadow": "campaign-arkham-shadow.json",
-  arkham: "campaign-arkham-shadow.json",
-  coc7e: "campaign-arkham-shadow.json"
+  "crimson-crypt": "dnd5e/crimson-crypt.json",
+  crimson: "dnd5e/crimson-crypt.json",
+  dnd5e: "dnd5e/crimson-crypt.json",
+  "arkham-shadow": "coc7e/arkham-shadow.json",
+  arkham: "coc7e/arkham-shadow.json",
+  coc7e: "coc7e/arkham-shadow.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);
@@ -2183,10 +2435,53 @@ function printOutput(data, asJson, humanText) {
   }
 }
 function resolveExampleFile(requested) {
-  const normalized = requested.toLowerCase().replace(/\.json$/, "");
-  const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
-  return path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..", "examples", fileName);
+  const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+  const cleanRequested = requested.trim();
+  const withJson = cleanRequested.endsWith(".json") ? cleanRequested : `${cleanRequested}.json`;
+  const candidateDirect = path3.resolve(process.cwd(), cleanRequested);
+  if (fs3.existsSync(candidateDirect) && fs3.statSync(candidateDirect).isFile()) {
+    return candidateDirect;
+  }
+  const candidateDirectJson = path3.resolve(process.cwd(), withJson);
+  if (fs3.existsSync(candidateDirectJson) && fs3.statSync(candidateDirectJson).isFile()) {
+    return candidateDirectJson;
+  }
+  const candidateCampaign = path3.resolve(rootDir, "campaigns", withJson);
+  if (fs3.existsSync(candidateCampaign) && fs3.statSync(candidateCampaign).isFile()) {
+    return candidateCampaign;
+  }
+  const normalized = cleanRequested.toLowerCase().replace(/\.json$/, "");
+  const relativeFromAlias = EXAMPLE_ALIASES[normalized];
+  if (relativeFromAlias) {
+    const p = path3.resolve(rootDir, "examples", relativeFromAlias);
+    if (fs3.existsSync(p)) return p;
+  }
+  const examplesDir = path3.resolve(rootDir, "examples");
+  const candidateBaseNames = [
+    cleanRequested,
+    withJson,
+    `campaign-${withJson.replace(/^campaign-/, "")}`,
+    withJson.replace(/^campaign-/, "")
+  ];
+  for (const sub of ["", "dnd5e", "coc7e", "pbta"]) {
+    for (const name of candidateBaseNames) {
+      const target = path3.resolve(examplesDir, sub, name);
+      if (fs3.existsSync(target) && fs3.statSync(target).isFile()) {
+        return target;
+      }
+    }
+  }
+  const availableAliases = Object.keys(EXAMPLE_ALIASES).sort().join(", ");
+  throw new Error(`Scenario "${requested}" not found. Available aliases: ${availableAliases}
+Run "node dist/trpg-cli.js init --list" to view all scenarios.`);
 }
+var parseList = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
+var parseNum = (v, label) => {
+  if (v === void 0) return void 0;
+  const n = Number(v);
+  if (typeof v !== "string" || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+  return n;
+};
 function resolveActorId(state, requested) {
   if (!requested) return void 0;
   const ids = Object.keys(state.combatants);
@@ -2221,11 +2516,30 @@ function main() {
   }
   switch (command) {
     case "init": {
+      if (flags.list) {
+        const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+        const catalogPath = path3.resolve(rootDir, "examples", "catalog.json");
+        const catalog = fs3.existsSync(catalogPath) ? JSON.parse(fs3.readFileSync(catalogPath, "utf-8")) : [];
+        if (asJson) {
+          console.log(JSON.stringify(catalog, null, 2));
+        } else {
+          console.log("\n[TRPG-Swarm \u5167\u5EFA\u7D93\u5178\u6230\u5F79\u5287\u672C\u5EAB]\n");
+          for (const item of catalog) {
+            const aliases = Array.isArray(item.alias) ? item.alias.join(" | ") : item.alias;
+            console.log(`- [${item.system.toUpperCase()}] ${item.title} (\u5225\u540D: ${aliases})`);
+            console.log(`  \u8DEF\u5F91: ${item.relativePath} | \u968A\u4F0D: ${item.partySize}`);
+            console.log(`  \u7C21\u4ECB: ${item.synopsis}
+`);
+          }
+          console.log("\u8F09\u5165\u65B9\u5F0F: node dist/trpg-cli.js init --example <\u5225\u540D> --state ./campaign-state.json\n");
+        }
+        break;
+      }
       const example = flags.example;
       const statePath = flags.state ?? DEFAULT_STATE_PATH;
       if (example) {
         const examplePath = resolveExampleFile(String(example));
-        const state2 = importWorldState(examplePath, seed ?? 42);
+        const state2 = importWorldState(examplePath, seed ?? 42, flags.scene);
         saveWorldState(statePath, state2);
         const summaryObj2 = {
           status: "initialized",
@@ -2392,7 +2706,8 @@ ${top3Text}`
         state,
         actorId,
         temperature,
-        flags["action-id"]
+        flags["action-id"],
+        flags.target
       );
       saveWorldState(statePath, state);
       printOutput(
@@ -2412,6 +2727,25 @@ ${top3Text}`
         asJson,
         `[\u56DE\u5408\u63A8\u9032 Turn ${state.turn - 1}] ${stepRes.eventRecorded.narrativeSummary}`
       );
+      break;
+    }
+    case "adjust": {
+      const statePath = flags.state ?? DEFAULT_STATE_PATH;
+      const state = loadWorldState(statePath);
+      const actorId = resolveActorId(state, flags.actor);
+      if (!actorId) {
+        throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(", ")}`);
+      }
+      const log = adjustCombatant(state, actorId, {
+        hp: flags.hp,
+        tempHp: parseNum(flags["temp-hp"], "temp-hp"),
+        san: flags.san,
+        luck: parseNum(flags.luck, "luck"),
+        addConditions: parseList(flags["add-condition"]),
+        removeConditions: parseList(flags["remove-condition"])
+      });
+      saveWorldState(statePath, state);
+      printOutput({ status: "adjusted", actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}\uFF1A${log.join("\uFF1B") || "\u7121\u8B8A\u66F4"}`);
       break;
     }
     case "fact-set": {
@@ -2451,7 +2785,7 @@ ${top3Text}`
         name: c.name,
         faction: c.faction,
         role: c.role,
-        hp: `${c.hp}/${c.maxHp}`,
+        hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} \u81E8\u6642)` : ""}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
         pos: `(${c.position.x},${c.position.y})`,
@@ -2494,8 +2828,8 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
   node --experimental-strip-types scripts/trpg-cli.ts <command> [options]   (Node >= 22.6)
 
 Commands:
-  init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> --state <path>   (load bundled example campaign)
+  init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
+             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
@@ -2503,7 +2837,8 @@ Commands:
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
-  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--temperature <num>] [--json]
+  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

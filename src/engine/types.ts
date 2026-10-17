@@ -25,19 +25,23 @@ export type ActionType =
   | 'dodge'
   | 'dash';
 
-export type ConditionType =
-  | 'prone'
-  | 'restrained'
-  | 'blessed'
-  | 'frightened'
-  | 'poisoned'
-  | 'stunned'
-  | 'unconscious'
-  | 'dodging'
-  | 'concentrating'
-  | 'madness_phobia'
-  | 'madness_mania'
-  | 'madness_hallucination';
+export const CONDITION_TYPES = [
+  'prone',
+  'restrained',
+  'blessed',
+  'frightened',
+  'poisoned',
+  'stunned',
+  'unconscious',
+  'dodging',
+  'concentrating',
+  'major_wound',
+  'dying',
+  'madness_phobia',
+  'madness_mania',
+  'madness_hallucination',
+] as const;
+export type ConditionType = (typeof CONDITION_TYPES)[number];
 
 export interface CharacterStats {
   // D&D 5e core stats (1-30) & modifiers
@@ -48,6 +52,10 @@ export interface CharacterStats {
   wis?: number;
   cha?: number;
   proficiencyBonus?: number;
+  // D&D damage-type modifiers (lowercase types such as 'poison', 'bludgeoning', 'necrotic')
+  resistances?: string[];
+  immunities?: string[];
+  vulnerabilities?: string[];
   spellSlots?: Record<number, { current: number; max: number }>;
 
   // CoC 7e core attributes (1-100) & investigator resources
@@ -82,6 +90,7 @@ export interface AbilityOrAction {
   aoeRadius?: number; // In grid tiles (0 or undefined = single target)
   attackBonus?: number;
   damageFormula?: string;
+  damageType?: string;
   healFormula?: string;
   spellLevel?: number; // 0 = cantrip, 1-9 = leveled spell
   saveAbility?: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
@@ -120,6 +129,7 @@ export interface Combatant {
   speed: number; // In grid tiles (e.g. 6 tiles = 30ft)
   initiative: number;
   conditions: ConditionType[];
+  tempHp?: number; // D&D temporary HP: drained before hp by attack and save damage
   deathSaves?: {
     successes: number;
     failures: number;
@@ -213,6 +223,17 @@ export interface MapGrid {
   elevation: number[][];
 }
 
+/** Scripted boss action from the campaign book (`villainActions`). */
+export interface VillainAction {
+  ownerId: string;
+  round: number;
+  name: string;
+  effect: string;
+  /** Reserve combatants this action brings into the fight (parsed from "summon ... (x: N, y: M)"). */
+  summons?: string[];
+  fired?: boolean;
+}
+
 export interface WorldState {
   campaignName: string;
   ruleSystem: RuleSystem;
@@ -229,4 +250,6 @@ export interface WorldState {
   workingMemory: EpisodicEvent[]; // Sliding window of last 12 events
   episodicLog: EpisodicEvent[]; // Immutable append-only log
   semanticFacts: MemoryFact[]; // Knowledge base with Temporal Supersession
+  villainActions?: VillainAction[]; // Scripted boss actions, fired on the owner's turn
+  reserve?: Record<string, Combatant>; // Combatants held back until a villain action summons them
 }

@@ -244,12 +244,23 @@ node dist/trpg-cli.js summary --state ./campaign-state.json
 
 | 指令 | 關鍵旗標 | 用途 |
 | :--- | :--- | :--- |
-| `init` | `--system <dnd5e\|coc7e\|pbta>`、`--example <crimson-crypt\|arkham-shadow>`、`--state <path>`、`--seed` | 初始化狀態檔 / 載入範例戰役 |
+| `init` | `--system <dnd5e\|coc7e\|pbta>`、`--example <crimson-crypt\|arkham-shadow>`、`--scene <sceneId\|areaId>`、`--state <path>`、`--seed` | 初始化狀態檔 / 載入範例戰役 |
 | `roll` | `"<expr>"`（如 `2d20kh1+6`、`1d100`）、`--seed` | 通用確定性擲骰 |
 | `check` | `--state`（自動帶入系統）或 `--system`；dnd5e：`--dc --mod --mode --label`；coc7e：`--skill --difficulty --bonus --push --luck --san --san-loss`；pbta：`--move --mod --danger` | 規則檢定 |
 | `ai-decide` | `--state --actor [--temperature] [--seed]` | Softmax Top-3 戰術候選（含 `action-id`） |
-| `step-turn` | `--state [--actor] [--action-id] [--temperature]` | 執行動作並推進回合 |
+| `step-turn` | `--state [--actor] [--action-id] [--target] [--temperature]` | 執行動作並推進回合；`--target` 指定攻擊或治療對象，非法目標會列出合法清單；省略 `--actor` 時自動跳過陣亡單位 |
+| `adjust` | `--state --actor [--hp +N\|-N\|=N] [--temp-hp N] [--san ...] [--luck N] [--add-condition c] [--remove-condition c]` | 記錄 DM 在戰鬥外擲出的結果（休息、藥水、臨時 HP、理智獎勵、幸運、狀態）；HP、SAN 會夾在合法範圍，從 0 回血會解除昏迷與瀕死，已陣亡者與不存在的狀態名會報錯 |
 | `fact-set` | `--state --subject --predicate (--value\|--object) [--category]` | 寫入/覆寫語義事實 |
 | `summary` | `--state` | 全場狀態總覽（含所有合法 actor id） |
 
 所有指令皆支援 `--json`（機器可讀輸出，供宿主代理人解析）與 `--seed`（重現確定性序列）。
+
+### 引擎行為備註
+- **換場景**：`init --example <name> --scene <id>` 以該場景重新載入狀態（隊伍數值回到劇本初始值，語義事實需用 `fact-set` 補回）；id 不合法時會列出合法 id。
+- **CoC 7e 倒地**：HP 降到 0 時，單次傷害達最大 HP 一半（重傷）者陷入瀕死，否則只是昏迷；瀕死者每回合擲 CON，失敗即死亡，急救（First Aid）與醫學（Medicine）技能成功才能穩定（`step-turn --action-id first_aid`）。怪物仍在 0 HP 死亡。
+- **D&D 5e 治療與法術位**：`spellcasting.preparedSpells` 中的 Cure Wounds、Healing Word 會成為治療動作，`spellcasting.slots` 會成為法術位並在施法時扣除。
+- **傷害類型**：怪物的 `resistances`、`immunities`、`vulnerabilities` 依攻擊的 `damageType` 套用（免疫 0、抗性減半、弱點加倍）。
+- **Boss 專屬行動**：`villainActions` 在 Boss 自己的回合、到達指定回合時觸發一次；召喚類行動會把效果文字裡座標上的敵人先留在預備區，觸發時才加入戰場。其餘（如衝鋒）只記錄事件，機制不結算。
+- **臨時 HP**：`adjust --temp-hp N` 設定；D&D 的攻擊與豁免傷害會先扣臨時 HP。CoC 沒有臨時 HP 規則。
+- **陷阱格**：劇本 `trapsAndHazards` 的 `location` 會在地圖上標成危險格（戰術 AI 會避開），但觸發與傷害仍需 DM 結算。
+- **尚未結算**：陷阱觸發、巢穴動作、儀式勝利條件、環境危害，仍需 DM 手動處理；休息的結果請用 `adjust` 記錄。

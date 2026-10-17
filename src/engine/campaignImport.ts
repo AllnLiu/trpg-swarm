@@ -17,8 +17,10 @@ import type {
   PersonaWeights,
   RuleSystem,
   TerrainType,
+  VillainAction,
   WorldState,
 } from './types.ts';
+import { getAbilityModifier } from './rulesEngine.ts';
 import { createDefaultTacticalMap, recordEpisodicEvent, upsertSemanticFact } from './stateStore.ts';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ interface BookAttack {
   skill?: string | number;
   percentage?: number;
   damage?: string;
+  damageType?: string;
   range?: string;
 }
 
@@ -53,6 +56,11 @@ interface BookPartyMember {
   skills?: Record<string, number>;
   attacks?: BookAttack[];
   resources?: Record<string, { current?: number; max?: number; effect?: string }>;
+  spellcasting?: {
+    ability?: string;
+    slots?: Record<string, { current?: number; max?: number }>;
+    preparedSpells?: string[];
+  };
   // CoC 7e shape
   occupation?: string;
   characteristics?: Record<string, number>;
@@ -79,6 +87,10 @@ interface BookEncounter {
   mov?: number;
   dex?: number;
   attacks?: BookAttack[];
+  resistances?: string[];
+  immunities?: string[];
+  vulnerabilities?: string[];
+  villainActions?: Array<{ round?: number; name?: string; effect?: string }>;
   position?: { x: number; y: number };
 }
 
@@ -98,6 +110,7 @@ interface BookArea {
     type?: string;
     coord?: { x: number; y: number };
     coords?: Array<{ x: number; y: number }>;
+    location?: { x: number; y: number }; // key used by the bundled books
   }>;
   encounters?: BookEncounter[];
 }
@@ -192,7 +205,7 @@ function buildMapFromArea(area: BookArea | undefined): MapGrid {
     }
   }
   for (const hazard of area.trapsAndHazards ?? []) {
-    for (const coord of [hazard.coord, ...(hazard.coords ?? [])]) {
+    for (const coord of [hazard.coord, hazard.location, ...(hazard.coords ?? [])]) {
       if (coord && coord.y >= 0 && coord.y < height && coord.x >= 0 && coord.x < width) {
         cells[coord.y][coord.x] = 'hazard';
       }
@@ -211,6 +224,7 @@ function dndAttackToAction(attack: BookAttack): AbilityOrAction {
     range: tiles,
     attackBonus: attack.bonus,
     damageFormula: attack.damage,
+    damageType: attack.damageType?.toLowerCase(),
   };
 }
 
@@ -253,19 +267,28 @@ function baseCombatant(partial: Partial<Combatant> & Pick<Combatant, 'id' | 'nam
 }
 
 // ---------------------------------------------------------------------------
+const COC_HEAL_SKILLS = [
+  { regex: /first aid|急救/i, id: 'first_aid' },
+  { regex: /medicine|醫學/i, id: 'medicine' },
+];
+
 // Main converter
 // ---------------------------------------------------------------------------
 
-export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldState {
+export function campaignBookToWorldState(book: CampaignBook, seed = 42, sceneOverride?: string): WorldState {
   const system = (book.system ?? 'dnd5e').toLowerCase() as RuleSystem;
   if (!['dnd5e', 'coc7e', 'pbta'].includes(system)) {
     throw new Error(`Unsupported campaign system "${book.system}" (expected dnd5e | coc7e | pbta).`);
   }
 
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  const sceneId = book.sessionState?.sceneId;
-  const area =
-    areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
+  const matched = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId);
+  if (sceneOverride && !matched) {
+    const valid = areas.map((a) => a.sceneId ?? a.areaId).join(', ');
+    throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
+  }
+  const area = matched ?? areas[0];
   const map = buildMapFromArea(area);
 
   const combatants: Record<string, Combatant> = {};
@@ -279,6 +302,22 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
       for (const action of actions) {
         if (action.cocSkillName && action.attackBonus !== undefined) {
           skills[action.cocSkillName] = action.attackBonus;
+        }
+      }
+      // First Aid / Medicine stabilise a dying investigator (references/coc7e-rules.md). The rules
+      // doc gives no heal amount, so the minimum the heal step applies (1 HP) is used.
+      for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
+        const kind = COC_HEAL_SKILLS.find((h) => h.regex.test(skillName))?.id;
+        if (kind && !actions.some((a) => a.id === kind)) {
+          actions.push({
+            id: kind,
+            name: skillName,
+            type: 'heal',
+            range: 1,
+            healFormula: '1',
+            cocSkillName: skillName,
+            attackBonus: percentage,
+          });
         }
       }
       return baseCombatant({
@@ -326,6 +365,35 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         });
       }
     }
+    // Prepared healing spells become heal actions (1 tile = 5 ft). Without this, a healer
+    // defined through `spellcasting` never gets a heal candidate.
+    const castingScore = member.spellcasting?.ability
+      ? abilities[member.spellcasting.ability]?.score
+      : undefined;
+    const castingMod = castingScore !== undefined ? getAbilityModifier(castingScore) : 0;
+    const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
+    const healSpells: Record<string, { id: string; name: string; range: number; dice: string }> = {
+      'cure wounds': { id: 'cure_wounds', name: '療傷術 (Cure Wounds)', range: 1, dice: '1d8' },
+      'healing word': { id: 'healing_word', name: '治癒真言 (Healing Word)', range: 12, dice: '1d4' },
+    };
+    for (const spell of member.spellcasting?.preparedSpells ?? []) {
+      const def = healSpells[spell.toLowerCase()];
+      if (def && !actions.some((a) => a.id === def.id)) {
+        actions.push({
+          id: def.id,
+          name: def.name,
+          type: 'heal',
+          range: def.range,
+          healFormula: `${def.dice}${modSuffix}`,
+          spellLevel: 1,
+        });
+      }
+    }
+    const spellSlots: Record<number, { current: number; max: number }> = {};
+    for (const [level, slot] of Object.entries(member.spellcasting?.slots ?? {})) {
+      const max = slot.max ?? slot.current ?? 0;
+      spellSlots[Number(level)] = { current: slot.current ?? max, max };
+    }
     return baseCombatant({
       id: member.id,
       name: member.name,
@@ -349,6 +417,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         cha: abilities.CHA?.score,
         proficiencyBonus: member.proficiencyBonus ?? 2,
         skills: member.skills,
+        spellSlots: Object.keys(spellSlots).length > 0 ? spellSlots : undefined,
       },
       actions,
     });
@@ -386,10 +455,42 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         ? Math.max(2, Math.round(encounter.speed / 5))
         : Math.max(2, Math.round((encounter.mov ?? 8) / 2)),
       initiative: encounter.dex ? Math.round(encounter.dex / 20) : 2,
-      stats: { dex: encounter.dex, skills: Object.keys(skills).length > 0 ? skills : undefined },
+      stats: {
+        dex: encounter.dex,
+        skills: Object.keys(skills).length > 0 ? skills : undefined,
+        resistances: encounter.resistances?.map((t) => t.toLowerCase()),
+        immunities: encounter.immunities?.map((t) => t.toLowerCase()),
+        vulnerabilities: encounter.vulnerabilities?.map((t) => t.toLowerCase()),
+      },
       actions,
     });
   });
+
+  // Villain actions: a "summon" action holds back the combatants standing on the coordinates it
+  // names, so they enter the fight on the owner's turn instead of at the start.
+  const villainActions: VillainAction[] = [];
+  const reserve: Record<string, Combatant> = {};
+  for (const encounter of area?.encounters ?? []) {
+    const ownerId = encounter.entityId ?? slugify(encounter.name);
+    for (const va of encounter.villainActions ?? []) {
+      const effect = va.effect ?? '';
+      const summons: string[] = [];
+      if (/召喚|summon/i.test(effect)) {
+        for (const m of effect.matchAll(/x:\s*(\d+)\s*,\s*y:\s*(\d+)/gi)) {
+          const [x, y] = [Number(m[1]), Number(m[2])];
+          const unit = Object.values(combatants).find(
+            (c) => c.faction === 'enemy' && c.id !== ownerId && c.position.x === x && c.position.y === y
+          );
+          if (unit && !summons.includes(unit.id)) summons.push(unit.id);
+        }
+      }
+      for (const id of summons) {
+        reserve[id] = combatants[id];
+        delete combatants[id];
+      }
+      villainActions.push({ ownerId, round: va.round ?? 1, name: va.name ?? 'Villain action', effect, summons });
+    }
+  }
 
   const initiativeOrder = Object.values(combatants)
     .sort((a, b) => b.initiative - a.initiative || (a.faction === 'party' ? -1 : 1))
@@ -414,6 +515,8 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
     workingMemory: [],
     episodicLog: [],
     semanticFacts: [],
+    villainActions: villainActions.length > 0 ? villainActions : undefined,
+    reserve: Object.keys(reserve).length > 0 ? reserve : undefined,
   };
 
   for (const [flag, value] of Object.entries(book.sessionState?.questFlags ?? {})) {
@@ -439,7 +542,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
  * Loads a JSON file that is either already a WorldState (passes through) or a
  * campaign book (converted automatically). This is the import entry point.
  */
-export function importWorldState(filePath: string, seed = 42): WorldState {
+export function importWorldState(filePath: string, seed = 42, sceneOverride?: string): WorldState {
   const abs = path.resolve(filePath);
   const raw: unknown = JSON.parse(fs.readFileSync(abs, 'utf-8'));
   if (
@@ -451,5 +554,5 @@ export function importWorldState(filePath: string, seed = 42): WorldState {
   ) {
     return raw as WorldState;
   }
-  return campaignBookToWorldState(raw as CampaignBook, seed);
+  return campaignBookToWorldState(raw as CampaignBook, seed, sceneOverride);
 }

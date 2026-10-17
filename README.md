@@ -14,7 +14,7 @@
 ## ✨ 核心特色
 
 - **零幻覺確定性檢定（Zero-Hallucination Mechanics）**：所有擲骰、傷害、SAN 扣減、法術位與先攻推進一律由 CLI 以密碼學亂數結算，`--seed` 可完整重現任一場戰役。
-- **反罐頭動態戰術 AI（Anti-Slop Tactical AI）**：`ai-decide` 依距離、血量比、掩體、資源與威脅度計算 6 維效用函數 + Softmax 機率分佈，輸出 Top-3 候選戰術；`step-turn --action-id` 可指定採用哪個候選（非法動作會報錯並列出合法清單，絕不靜默改選）。
+- **反罐頭動態戰術 AI（Anti-Slop Tactical AI）**：`ai-decide` 依距離、血量比、掩體、資源與威脅度計算 6 維效用函數 + Softmax 機率分佈，輸出 Top-3 候選戰術；`step-turn --action-id` 可指定採用哪個候選、`--target` 可指定對象（非法動作或目標會報錯並列出合法清單，絕不靜默改選）。
 - **時序語義事實覆寫（Temporal Semantic Supersession）**：世界事實庫自動將被推翻的舊事實標記 `isActive: false` 並記錄 `supersededBy`，長戰役前後零矛盾。
 - **跨平臺零依賴**：`dist/trpg-cli.js` 為預建純 JS bundle，Node ≥ 18 免安裝、免旗標、免殼層專屬語法，Windows / macOS / Linux 通吃。
 - **跨代理人能力適配**：不綁定任何宿主工具名稱。具備子代理人機制的環境跑 **Mode S（蜂群）**；只有終端機的環境自動降級 **Mode I（單上下文內嵌扮演）**；完全無法執行指令的環境還有 **Mode M（純對話降級）**。
@@ -44,6 +44,8 @@ node dist/trpg-cli.js roll "1d20"
 # 初始化戰役（或用 init --example crimson-crypt / arkham-shadow 直接載入隨附劇本）
 node dist/trpg-cli.js init --system dnd5e --state ./campaign-state.json
 node dist/trpg-cli.js init --example arkham-shadow --state ./campaign-state.json
+# 以其他場景開局（id 不合法時會列出合法 id）
+node dist/trpg-cli.js init --example arkham-shadow --scene scene-3-pier-4-warehouse --state ./campaign-state.json
 
 # 戰術評分 → 執行回合
 node dist/trpg-cli.js ai-decide --state ./campaign-state.json --actor vanguard

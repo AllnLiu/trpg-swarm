@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type {
   Combatant,
+  ConditionType,
+  DiceRollResult,
   EpisodicEvent,
   FactCategory,
   MapGrid,
@@ -10,8 +12,13 @@ import type {
   TerrainType,
   WorldState,
 } from './types.ts';
+import { CONDITION_TYPES } from './types.ts';
 import { DeterministicRNG, rollDice } from './dice.ts';
 import {
+  COC_LEVEL_RANK,
+  clearDowned,
+  resolveCoC7eDeathCheck,
+  resolveCoC7eCheck,
   resolveCoC7eOpposedCombat,
   resolveCoC7eSanity,
   resolveDnD5eAttack,
@@ -696,7 +703,8 @@ export function stepCombatTurn(
   state: WorldState,
   overrideActorId?: string,
   temperature = 0.65,
-  preferredActionId?: string
+  preferredActionId?: string,
+  preferredTargetId?: string
 ): {
   actorId: string;
   actorName: string;
@@ -727,29 +735,28 @@ export function stepCombatTurn(
 
   const actor = state.combatants[actorId];
 
+  fireVillainActions(state, actor.id);
+
   // If actor is at 0 HP and unconscious in D&D 5e, perform Death Save first
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === 'dnd5e') {
     const ds = resolveDnD5eDeathSave(actor, rng);
-    const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: 'death_save',
-      diceRoll: ds.roll,
-      narrativeSummary: ds.narrative,
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport,
-      resolutionNarrative: ds.narrative,
-      eventRecorded: evt,
-    };
+    return finishDownedTurn(state, actor, ds.narrative, temperature, preferredActionId, ds.roll);
+  }
+
+  // CoC 7e: a downed investigator cannot act. A dying one rolls CON each turn and dies on a failure.
+  if (actor.hp === 0 && actor.isAlive && state.ruleSystem === 'coc7e') {
+    const dying = actor.conditions.includes('dying');
+    let narrative = `${actor.name} 昏迷不醒，無法行動。`;
+    if (dying) {
+      const check = resolveCoC7eDeathCheck(actor, rng);
+      narrative = check.narrative;
+      if (check.isDead) upsertSemanticFact(state, actor.id, 'status', 'dead', 'npc');
+    }
+    return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
   }
 
   // Run Softmax Situational Tactical AI
-  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId, preferredTargetId);
   const chosen = decisionReport.selectedCandidate;
   const action = chosen.action;
 
@@ -767,14 +774,21 @@ export function stepCombatTurn(
   const target = chosen.targetId ? state.combatants[chosen.targetId] : undefined;
   let resolutionNarrative = '';
 
-  if (action.type === 'heal' && target) {
+  if (action.type === 'heal' && target && state.ruleSystem === 'coc7e' && action.attackBonus !== undefined) {
+    const check = resolveCoC7eCheck({ skill: action.attackBonus, rng });
+    if (check.levelRank < COC_LEVEL_RANK.Regular) {
+      resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 失敗，沒能穩定傷勢。`;
+    } else {
+      const prevHp = target.hp;
+      target.hp = Math.min(target.maxHp, target.hp + Math.max(1, rollDice(action.healFormula ?? '1', rng).total));
+      if (prevHp === 0) clearDowned(target);
+      resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 成功，傷勢穩定 (${prevHp} -> ${target.hp}/${target.maxHp})。`;
+    }
+  } else if (action.type === 'heal' && target) {
     const healRoll = rollDice(action.healFormula ?? '1d8+3', rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
-    if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== 'unconscious');
-      target.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prevHp === 0 && target.hp > 0) clearDowned(target);
     resolutionNarrative = `${actor.name} 對 ${target.name} 施展【${action.name}】恢復 ${target.hp - prevHp} 點 HP (${prevHp} -> ${target.hp}/${target.maxHp})。`;
   } else if (action.type === 'buff' && target) {
     if (action.appliesCondition && !target.conditions.includes(action.appliesCondition)) {
@@ -881,6 +895,127 @@ export function stepCombatTurn(
     resolutionNarrative,
     eventRecorded,
   };
+}
+
+export interface AdjustOptions {
+  hp?: string; // "+N", "-N", "=N" or "N" (set)
+  tempHp?: number;
+  san?: string;
+  luck?: number;
+  addConditions?: string[];
+  removeConditions?: string[];
+}
+
+function applyDelta(current: number, spec: string, min: number, max: number, label: string): number {
+  const m = /^([+\-=]?)(\d+)$/.exec(spec.trim());
+  if (!m) throw new Error(`Invalid ${label} value "${spec}". Use +N, -N, =N or N.`);
+  const n = Number(m[2]);
+  const next = m[1] === '+' ? current + n : m[1] === '-' ? current - n : n;
+  return Math.min(max, Math.max(min, next));
+}
+
+/**
+ * Out-of-combat state changes the host rolled for itself (rests, potions, temp HP, sanity,
+ * luck, conditions). HP is clamped to [0, maxHp]; raising HP from 0 clears unconscious and dying.
+ */
+export function adjustCombatant(state: WorldState, actorId: string, opts: AdjustOptions): string[] {
+  const c = state.combatants[actorId];
+  if (!c) {
+    throw new Error(`Unknown combatant "${actorId}". Valid ids: ${Object.keys(state.combatants).join(', ')}`);
+  }
+  if (!c.isAlive) throw new Error(`${c.name} (${c.id}) is dead and cannot be adjusted.`);
+  const log: string[] = [];
+  const known = CONDITION_TYPES as readonly string[];
+  for (const cond of [...(opts.addConditions ?? []), ...(opts.removeConditions ?? [])]) {
+    if (!known.includes(cond)) {
+      throw new Error(`Unknown condition "${cond}". Valid conditions: ${known.join(', ')}`);
+    }
+  }
+  if (opts.hp !== undefined) {
+    const prev = c.hp;
+    c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, 'hp');
+    if (prev === 0 && c.hp > 0) clearDowned(c);
+    log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
+  }
+  if (opts.tempHp !== undefined) {
+    c.tempHp = Math.max(0, Math.floor(opts.tempHp));
+    log.push(`臨時 HP -> ${c.tempHp}`);
+  }
+  if (opts.san !== undefined) {
+    const prev = c.san;
+    c.san = applyDelta(c.san, opts.san, 0, c.maxSan, 'san');
+    log.push(`SAN ${prev} -> ${c.san}/${c.maxSan}`);
+  }
+  if (opts.luck !== undefined) {
+    c.stats.luck = Math.max(0, Math.floor(opts.luck));
+    log.push(`幸運 -> ${c.stats.luck}`);
+  }
+  for (const cond of opts.addConditions ?? []) {
+    if (!c.conditions.includes(cond as ConditionType)) c.conditions.push(cond as ConditionType);
+    log.push(`+狀態 ${cond}`);
+  }
+  for (const cond of opts.removeConditions ?? []) {
+    c.conditions = c.conditions.filter((x) => x !== cond);
+    log.push(`-狀態 ${cond}`);
+  }
+  recordEpisodicEvent(state, {
+    actorId: c.id,
+    actorName: c.name,
+    actionType: 'adjust',
+    narrativeSummary: `【手動調整】${c.name}：${log.join('；')}`,
+  });
+  return log;
+}
+
+/** Fire due villain actions on their owner's turn; summons join the initiative order. */
+/** Shared tail of a downed actor's turn: record the death-save event, advance the turn, return the step result. */
+function finishDownedTurn(
+  state: WorldState,
+  actor: Combatant,
+  narrative: string,
+  temperature: number,
+  preferredActionId?: string,
+  diceRoll?: DiceRollResult
+): ReturnType<typeof stepCombatTurn> {
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
+  const evt = recordEpisodicEvent(state, {
+    actorId: actor.id,
+    actorName: actor.name,
+    actionType: 'death_save',
+    diceRoll,
+    narrativeSummary: narrative,
+  });
+  advanceTurnCounters(state);
+  return {
+    actorId: actor.id,
+    actorName: actor.name,
+    decisionReport,
+    resolutionNarrative: narrative,
+    eventRecorded: evt,
+  };
+}
+
+function fireVillainActions(state: WorldState, actorId: string): void {
+  for (const va of state.villainActions ?? []) {
+    if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
+    va.fired = true;
+    const arrivals: string[] = [];
+    for (const id of va.summons ?? []) {
+      const unit = state.reserve?.[id];
+      if (!unit) continue;
+      state.combatants[id] = unit;
+      delete state.reserve![id];
+      state.initiativeOrder.push(id);
+      arrivals.push(unit.name);
+    }
+    const owner = state.combatants[actorId];
+    recordEpisodicEvent(state, {
+      actorId,
+      actorName: owner?.name ?? actorId,
+      actionType: 'villain_action',
+      narrativeSummary: `【Boss 專屬行動：${va.name}】${va.effect}${arrivals.length ? ` 登場：${arrivals.join('、')}。` : ''}`,
+    });
+  }
 }
 
 function advanceTurnCounters(state: WorldState): void {

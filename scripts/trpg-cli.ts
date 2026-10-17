@@ -8,6 +8,7 @@
  *   - All commands accept --json for machine-readable output and --seed for deterministic replay.
  */
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { FactCategory, RuleSystem, WorldState } from '../src/engine/types.ts';
 import { DeterministicRNG, rollDice } from '../src/engine/dice.ts';
@@ -19,6 +20,7 @@ import {
 } from '../src/engine/rulesEngine.ts';
 import { evaluateTacticalActions } from '../src/engine/tacticalAI.ts';
 import {
+  adjustCombatant,
   createDefaultEncounter,
   loadWorldState,
   queryActiveFacts,
@@ -31,12 +33,12 @@ import { importWorldState } from '../src/engine/campaignImport.ts';
 const DEFAULT_STATE_PATH = './campaign-state.json';
 
 const EXAMPLE_ALIASES: Record<string, string> = {
-  'crimson-crypt': 'campaign-crimson-crypt.json',
-  crimson: 'campaign-crimson-crypt.json',
-  dnd5e: 'campaign-crimson-crypt.json',
-  'arkham-shadow': 'campaign-arkham-shadow.json',
-  arkham: 'campaign-arkham-shadow.json',
-  coc7e: 'campaign-arkham-shadow.json',
+  'crimson-crypt': 'dnd5e/crimson-crypt.json',
+  crimson: 'dnd5e/crimson-crypt.json',
+  dnd5e: 'dnd5e/crimson-crypt.json',
+  'arkham-shadow': 'coc7e/arkham-shadow.json',
+  arkham: 'coc7e/arkham-shadow.json',
+  coc7e: 'coc7e/arkham-shadow.json',
 };
 
 interface ParsedArgs {
@@ -84,10 +86,54 @@ function printOutput(data: unknown, asJson: boolean, humanText?: string): void {
 
 
 function resolveExampleFile(requested: string): string {
-  const normalized = requested.toLowerCase().replace(/\.json$/, '');
-  const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
-  // dist/trpg-cli.js -> <root>/dist, scripts/trpg-cli.ts -> <root>/scripts
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'examples', fileName);
+  const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const cleanRequested = requested.trim();
+  const withJson = cleanRequested.endsWith('.json') ? cleanRequested : `${cleanRequested}.json`;
+
+  // 1. Direct path check (as given or with .json)
+  const candidateDirect = path.resolve(process.cwd(), cleanRequested);
+  if (fs.existsSync(candidateDirect) && fs.statSync(candidateDirect).isFile()) {
+    return candidateDirect;
+  }
+  const candidateDirectJson = path.resolve(process.cwd(), withJson);
+  if (fs.existsSync(candidateDirectJson) && fs.statSync(candidateDirectJson).isFile()) {
+    return candidateDirectJson;
+  }
+
+  // 2. Check in campaigns/ directory
+  const candidateCampaign = path.resolve(rootDir, 'campaigns', withJson);
+  if (fs.existsSync(candidateCampaign) && fs.statSync(candidateCampaign).isFile()) {
+    return candidateCampaign;
+  }
+
+  // 3. Normalized alias check
+  const normalized = cleanRequested.toLowerCase().replace(/\.json$/, '');
+  const relativeFromAlias = EXAMPLE_ALIASES[normalized];
+  if (relativeFromAlias) {
+    const p = path.resolve(rootDir, 'examples', relativeFromAlias);
+    if (fs.existsSync(p)) return p;
+  }
+
+  // 4. Search inside examples/ and its system subdirectories
+  const examplesDir = path.resolve(rootDir, 'examples');
+  const candidateBaseNames = [
+    cleanRequested,
+    withJson,
+    `campaign-${withJson.replace(/^campaign-/, '')}`,
+    withJson.replace(/^campaign-/, ''),
+  ];
+
+  for (const sub of ['', 'dnd5e', 'coc7e', 'pbta']) {
+    for (const name of candidateBaseNames) {
+      const target = path.resolve(examplesDir, sub, name);
+      if (fs.existsSync(target) && fs.statSync(target).isFile()) {
+        return target;
+      }
+    }
+  }
+
+  const availableAliases = Object.keys(EXAMPLE_ALIASES).sort().join(', ');
+  throw new Error(`Scenario "${requested}" not found. Available aliases: ${availableAliases}\nRun "node dist/trpg-cli.js init --list" to view all scenarios.`);
 }
 
 /**
@@ -96,6 +142,16 @@ function resolveExampleFile(requested: string): string {
  * containment, and character-name matches. On failure, list every available id so the
  * agent can self-correct in one round-trip.
  */
+const parseList = (v: string | boolean | undefined) =>
+  typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+
+const parseNum = (v: string | boolean | undefined, label: string) => {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  if (typeof v !== 'string' || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+  return n;
+};
+
 function resolveActorId(state: WorldState, requested?: string): string | undefined {
   if (!requested) return undefined;
   const ids = Object.keys(state.combatants);
@@ -137,12 +193,30 @@ function main(): void {
 
   switch (command) {
     case 'init': {
+      if (flags.list) {
+        const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+        const catalogPath = path.resolve(rootDir, 'examples', 'catalog.json');
+        const catalog = fs.existsSync(catalogPath) ? JSON.parse(fs.readFileSync(catalogPath, 'utf-8')) : [];
+        if (asJson) {
+          console.log(JSON.stringify(catalog, null, 2));
+        } else {
+          console.log('\n[TRPG-Swarm 內建經典戰役劇本庫]\n');
+          for (const item of catalog) {
+            const aliases = Array.isArray(item.alias) ? item.alias.join(' | ') : item.alias;
+            console.log(`- [${item.system.toUpperCase()}] ${item.title} (別名: ${aliases})`);
+            console.log(`  路徑: ${item.relativePath} | 隊伍: ${item.partySize}`);
+            console.log(`  簡介: ${item.synopsis}\n`);
+          }
+          console.log('載入方式: node dist/trpg-cli.js init --example <別名> --state ./campaign-state.json\n');
+        }
+        break;
+      }
       const example = flags.example as string | undefined;
       const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
 
       if (example) {
         const examplePath = resolveExampleFile(String(example));
-        const state = importWorldState(examplePath, seed ?? 42);
+        const state = importWorldState(examplePath, seed ?? 42, flags.scene as string | undefined);
         saveWorldState(statePath, state);
         const summaryObj = {
           status: 'initialized',
@@ -324,7 +398,8 @@ function main(): void {
         state,
         actorId,
         temperature,
-        flags['action-id'] as string | undefined
+        flags['action-id'] as string | undefined,
+        flags.target as string | undefined
       );
       saveWorldState(statePath, state);
 
@@ -345,6 +420,26 @@ function main(): void {
         asJson,
         `[回合推進 Turn ${state.turn - 1}] ${stepRes.eventRecorded.narrativeSummary}`
       );
+      break;
+    }
+
+    case 'adjust': {
+      const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
+      const state = loadWorldState(statePath);
+      const actorId = resolveActorId(state, flags.actor as string | undefined);
+      if (!actorId) {
+        throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(', ')}`);
+      }
+      const log = adjustCombatant(state, actorId, {
+        hp: flags.hp as string | undefined,
+        tempHp: parseNum(flags['temp-hp'], 'temp-hp'),
+        san: flags.san as string | undefined,
+        luck: parseNum(flags.luck, 'luck'),
+        addConditions: parseList(flags['add-condition']),
+        removeConditions: parseList(flags['remove-condition']),
+      });
+      saveWorldState(statePath, state);
+      printOutput({ status: 'adjusted', actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}：${log.join('；') || '無變更'}`);
       break;
     }
 
@@ -393,7 +488,7 @@ function main(): void {
         name: c.name,
         faction: c.faction,
         role: c.role,
-        hp: `${c.hp}/${c.maxHp}`,
+        hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} 臨時)` : ''}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
         pos: `(${c.position.x},${c.position.y})`,
@@ -441,8 +536,8 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
   node --experimental-strip-types scripts/trpg-cli.ts <command> [options]   (Node >= 22.6)
 
 Commands:
-  init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> --state <path>   (load bundled example campaign)
+  init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
+             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
@@ -450,7 +545,8 @@ Commands:
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
-  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--temperature <num>] [--json]
+  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

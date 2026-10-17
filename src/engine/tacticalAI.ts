@@ -390,7 +390,8 @@ export function evaluateTacticalActions(
   actorId: string,
   temperature = 0.65,
   rng: DeterministicRNG = getGlobalRng(),
-  preferredActionId?: string
+  preferredActionId?: string,
+  preferredTargetId?: string
 ): TacticalDecisionReport {
   const actor = state.combatants[actorId];
   if (!actor) {
@@ -550,18 +551,33 @@ export function evaluateTacticalActions(
   // Deterministic override: honor an explicitly declared action (zero-hallucination
   // contract for host agents), matched by full candidate id or bare action id.
   // Unmatched overrides are hard errors, never silent fallbacks.
-  if (preferredActionId) {
-    const override =
-      candidates.find((c) => c.id === preferredActionId) ??
-      [...candidates]
-        .filter((c) => c.action.id === preferredActionId)
-        .sort((a, b) => b.totalUtility - a.totalUtility)[0];
+  // An optional target id narrows the choice to candidates aimed at that combatant.
+  if (preferredActionId || preferredTargetId) {
+    const pool = candidates.filter(
+      (c) =>
+        (!preferredActionId || c.id === preferredActionId || c.action.id === preferredActionId) &&
+        (!preferredTargetId || c.targetId === preferredTargetId)
+    );
+    const override = pool.reduce<(typeof pool)[number] | undefined>(
+      (best, c) => (!best || c.totalUtility > best.totalUtility ? c : best),
+      undefined
+    );
     if (!override) {
-      const allActionIds = candidates.map((c) => c.action.id);
-      const legalActionIds = allActionIds.filter((id, i) => allActionIds.indexOf(id) === i);
+      const unique = (ids: string[]) => [...new Set(ids)];
+      const legalActionIds = unique(candidates.map((c) => c.action.id));
+      const legalTargetIds = unique(
+        candidates
+          .filter((c) => !preferredActionId || c.action.id === preferredActionId)
+          .map((c) => c.targetId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const actionOk = !preferredActionId || legalActionIds.includes(preferredActionId);
       throw new Error(
-        `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). ` +
-          `Legal action ids: ${legalActionIds.join(', ')}. Re-run ai-decide for current candidates.`
+        (actionOk
+          ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})` +
+            `${preferredActionId ? ` with action "${preferredActionId}"` : ''}. `
+          : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) +
+          `Legal action ids: ${legalActionIds.join(', ')}. Legal target ids: ${legalTargetIds.join(', ')}. Re-run ai-decide for current candidates.`
       );
     }
     selectedCandidate = override;
