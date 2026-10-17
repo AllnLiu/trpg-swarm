@@ -97,6 +97,16 @@ function resolveExampleFile(requested: string): string {
  * containment, and character-name matches. On failure, list every available id so the
  * agent can self-correct in one round-trip.
  */
+const parseList = (v: string | boolean | undefined) =>
+  typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+
+const parseNum = (v: string | boolean | undefined, label: string) => {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  if (typeof v !== 'string' || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+  return n;
+};
+
 function resolveActorId(state: WorldState, requested?: string): string | undefined {
   if (!requested) return undefined;
   const ids = Object.keys(state.combatants);
@@ -357,21 +367,13 @@ function main(): void {
       if (!actorId) {
         throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(', ')}`);
       }
-      const list = (v: string | boolean | undefined) =>
-        typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-      const num = (v: string | boolean | undefined, label: string) => {
-        if (v === undefined) return undefined;
-        const n = Number(v);
-        if (typeof v !== 'string' || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
-        return n;
-      };
       const log = adjustCombatant(state, actorId, {
         hp: flags.hp as string | undefined,
-        tempHp: num(flags['temp-hp'], 'temp-hp'),
+        tempHp: parseNum(flags['temp-hp'], 'temp-hp'),
         san: flags.san as string | undefined,
-        luck: num(flags.luck, 'luck'),
-        addConditions: list(flags['add-condition']),
-        removeConditions: list(flags['remove-condition']),
+        luck: parseNum(flags.luck, 'luck'),
+        addConditions: parseList(flags['add-condition']),
+        removeConditions: parseList(flags['remove-condition']),
       });
       saveWorldState(statePath, state);
       printOutput({ status: 'adjusted', actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}：${log.join('；') || '無變更'}`);

@@ -2140,18 +2140,23 @@ function baseCombatant(partial) {
     ...partial
   };
 }
+var COC_HEAL_SKILLS = [
+  { regex: /first aid|急救/i, id: "first_aid" },
+  { regex: /medicine|醫學/i, id: "medicine" }
+];
 function campaignBookToWorldState(book, seed = 42, sceneOverride) {
   const system = (book.system ?? "dnd5e").toLowerCase();
   if (!["dnd5e", "coc7e", "pbta"].includes(system)) {
     throw new Error(`Unsupported campaign system "${book.system}" (expected dnd5e | coc7e | pbta).`);
   }
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  if (sceneOverride && !areas.some((a) => a.sceneId === sceneOverride || a.areaId === sceneOverride)) {
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
+  const matched = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId);
+  if (sceneOverride && !matched) {
     const valid = areas.map((a) => a.sceneId ?? a.areaId).join(", ");
     throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
   }
-  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
-  const area = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
+  const area = matched ?? areas[0];
   const map = buildMapFromArea(area);
   const combatants = {};
   const party = book.party.map((member, idx) => {
@@ -2166,7 +2171,7 @@ function campaignBookToWorldState(book, seed = 42, sceneOverride) {
         }
       }
       for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
-        const kind = /first aid|急救/i.test(skillName) ? "first_aid" : /medicine|醫學/i.test(skillName) ? "medicine" : void 0;
+        const kind = COC_HEAL_SKILLS.find((h) => h.regex.test(skillName))?.id;
         if (kind && !actions2.some((a) => a.id === kind)) {
           actions2.push({
             id: kind,
@@ -2433,6 +2438,13 @@ function resolveExampleFile(requested) {
   const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
   return path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..", "examples", fileName);
 }
+var parseList = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
+var parseNum = (v, label) => {
+  if (v === void 0) return void 0;
+  const n = Number(v);
+  if (typeof v !== "string" || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+  return n;
+};
 function resolveActorId(state, requested) {
   if (!requested) return void 0;
   const ids = Object.keys(state.combatants);
@@ -2668,20 +2680,13 @@ ${top3Text}`
       if (!actorId) {
         throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(", ")}`);
       }
-      const list = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
-      const num = (v, label) => {
-        if (v === void 0) return void 0;
-        const n = Number(v);
-        if (typeof v !== "string" || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
-        return n;
-      };
       const log = adjustCombatant(state, actorId, {
         hp: flags.hp,
-        tempHp: num(flags["temp-hp"], "temp-hp"),
+        tempHp: parseNum(flags["temp-hp"], "temp-hp"),
         san: flags.san,
-        luck: num(flags.luck, "luck"),
-        addConditions: list(flags["add-condition"]),
-        removeConditions: list(flags["remove-condition"])
+        luck: parseNum(flags.luck, "luck"),
+        addConditions: parseList(flags["add-condition"]),
+        removeConditions: parseList(flags["remove-condition"])
       });
       saveWorldState(statePath, state);
       printOutput({ status: "adjusted", actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}\uFF1A${log.join("\uFF1B") || "\u7121\u8B8A\u66F4"}`);

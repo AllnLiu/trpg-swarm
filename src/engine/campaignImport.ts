@@ -267,6 +267,11 @@ function baseCombatant(partial: Partial<Combatant> & Pick<Combatant, 'id' | 'nam
 }
 
 // ---------------------------------------------------------------------------
+const COC_HEAL_SKILLS = [
+  { regex: /first aid|急救/i, id: 'first_aid' },
+  { regex: /medicine|醫學/i, id: 'medicine' },
+];
+
 // Main converter
 // ---------------------------------------------------------------------------
 
@@ -277,13 +282,13 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42, sceneOve
   }
 
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  if (sceneOverride && !areas.some((a) => a.sceneId === sceneOverride || a.areaId === sceneOverride)) {
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
+  const matched = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId);
+  if (sceneOverride && !matched) {
     const valid = areas.map((a) => a.sceneId ?? a.areaId).join(', ');
     throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
   }
-  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
-  const area =
-    areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
+  const area = matched ?? areas[0];
   const map = buildMapFromArea(area);
 
   const combatants: Record<string, Combatant> = {};
@@ -302,7 +307,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42, sceneOve
       // First Aid / Medicine stabilise a dying investigator (references/coc7e-rules.md). The rules
       // doc gives no heal amount, so the minimum the heal step applies (1 HP) is used.
       for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
-        const kind = /first aid|急救/i.test(skillName) ? 'first_aid' : /medicine|醫學/i.test(skillName) ? 'medicine' : undefined;
+        const kind = COC_HEAL_SKILLS.find((h) => h.regex.test(skillName))?.id;
         if (kind && !actions.some((a) => a.id === kind)) {
           actions.push({
             id: kind,
