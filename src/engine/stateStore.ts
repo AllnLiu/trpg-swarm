@@ -12,6 +12,8 @@ import type {
 } from './types.ts';
 import { DeterministicRNG, rollDice } from './dice.ts';
 import {
+  COC_LEVEL_RANK,
+  resolveCoC7eCheck,
   resolveCoC7eOpposedCombat,
   resolveCoC7eSanity,
   resolveDnD5eAttack,
@@ -748,6 +750,37 @@ export function stepCombatTurn(
     };
   }
 
+  // CoC 7e: a downed investigator cannot act. A dying one rolls CON each turn and dies on a failure.
+  if (actor.hp === 0 && actor.isAlive && state.ruleSystem === 'coc7e') {
+    const dying = actor.conditions.includes('dying');
+    let narrative = `${actor.name} 昏迷不醒，無法行動。`;
+    if (dying) {
+      const con = resolveCoC7eCheck({ skill: actor.stats.con ?? 50, rng });
+      if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+        narrative = `${actor.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 成功，勉強撐過這一輪。`;
+      } else {
+        actor.isAlive = false;
+        narrative = `${actor.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 失敗，【死亡】。`;
+        upsertSemanticFact(state, actor.id, 'status', 'dead', 'npc');
+      }
+    }
+    const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
+    const evt = recordEpisodicEvent(state, {
+      actorId: actor.id,
+      actorName: actor.name,
+      actionType: 'death_save',
+      narrativeSummary: narrative,
+    });
+    advanceTurnCounters(state);
+    return {
+      actorId: actor.id,
+      actorName: actor.name,
+      decisionReport,
+      resolutionNarrative: narrative,
+      eventRecorded: evt,
+    };
+  }
+
   // Run Softmax Situational Tactical AI
   const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
   const chosen = decisionReport.selectedCandidate;
@@ -772,7 +805,7 @@ export function stepCombatTurn(
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
     if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== 'unconscious');
+      target.conditions = target.conditions.filter((c) => c !== 'unconscious' && c !== 'dying');
       target.deathSaves = { successes: 0, failures: 0, isStable: true };
     }
     resolutionNarrative = `${actor.name} 對 ${target.name} 施展【${action.name}】恢復 ${target.hp - prevHp} 點 HP (${prevHp} -> ${target.hp}/${target.maxHp})。`;

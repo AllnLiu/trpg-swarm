@@ -551,6 +551,21 @@ function resolveCoC7eSanity(currentSan, sanLossFormula = "1/1d6", intScore = 65,
     narrative
   };
 }
+function applyCoC7eDamage(target, damage) {
+  target.hp = Math.max(0, target.hp - damage);
+  if (damage >= Math.ceil(target.maxHp / 2) && !target.conditions.includes("major_wound")) {
+    target.conditions.push("major_wound");
+  }
+  if (target.hp > 0) return;
+  if (target.faction === "enemy") {
+    target.isAlive = false;
+    return;
+  }
+  if (!target.conditions.includes("unconscious")) target.conditions.push("unconscious");
+  if (target.conditions.includes("major_wound") && !target.conditions.includes("dying")) {
+    target.conditions.push("dying");
+  }
+}
 function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng()) {
   const atkSkill = attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
   const defSkill = defenseMode === "dodge" ? defender.stats.skills?.["Dodge"] ?? 45 : defender.stats.skills?.["Fighting (Brawl)"] ?? 50;
@@ -582,12 +597,10 @@ function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", ba
     } else {
       damageDealt = rollDice(baseDamageFormula, rng).total;
     }
-    defender.hp = Math.max(0, defender.hp - damageDealt);
-    if (defender.hp === 0) defender.isAlive = false;
+    applyCoC7eDamage(defender, damageDealt);
   } else if (winner === "defender" && defenseMode === "fight_back") {
     damageDealt = rollDice("1d4+1", rng).total;
-    attacker.hp = Math.max(0, attacker.hp - damageDealt);
-    if (attacker.hp === 0) attacker.isAlive = false;
+    applyCoC7eDamage(attacker, damageDealt);
   }
   const narrative = `CoC 7e \u5C0D\u6297\u8FD1\u6230\uFF1A${attacker.name} \u653B\u64CA [${attackerCheck.roll.total}/${attackerCheck.level}] vs ${defender.name} ${defenseMode === "dodge" ? "\u9583\u907F" : "\u53CD\u64CA"} [${defenderCheck.roll.total}/${defenderCheck.level}] => ${winner === "attacker" ? `${attacker.name} \u52DD\u51FA\uFF01${isImpale ? "\u3010\u6975\u9650\u8CAB\u7A7F Impale\uFF01\u3011" : ""}\u5C0D ${defender.name} \u9020\u6210 ${damageDealt} \u9EDE\u50B7\u5BB3\uFF01` : winner === "defender" ? defenseMode === "dodge" ? `${defender.name} \u9A5A\u96AA\u9583\u907F\u4E86\u653B\u64CA\uFF01` : `${defender.name} \u53CD\u64CA\u6210\u529F\uFF01\u5C0D ${attacker.name} \u9020\u6210 ${damageDealt} \u9EDE\u50B7\u5BB3\uFF01` : "\u96D9\u65B9\u7686\u672A\u547D\u4E2D\u3002"}`;
   return {
@@ -1707,6 +1720,35 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
       eventRecorded: evt
     };
   }
+  if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "coc7e") {
+    const dying = actor.conditions.includes("dying");
+    let narrative = `${actor.name} \u660F\u8FF7\u4E0D\u9192\uFF0C\u7121\u6CD5\u884C\u52D5\u3002`;
+    if (dying) {
+      const con = resolveCoC7eCheck({ skill: actor.stats.con ?? 50, rng });
+      if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+        narrative = `${actor.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u6210\u529F\uFF0C\u52C9\u5F37\u6490\u904E\u9019\u4E00\u8F2A\u3002`;
+      } else {
+        actor.isAlive = false;
+        narrative = `${actor.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u5931\u6557\uFF0C\u3010\u6B7B\u4EA1\u3011\u3002`;
+        upsertSemanticFact(state, actor.id, "status", "dead", "npc");
+      }
+    }
+    const decisionReport2 = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
+    const evt = recordEpisodicEvent(state, {
+      actorId: actor.id,
+      actorName: actor.name,
+      actionType: "death_save",
+      narrativeSummary: narrative
+    });
+    advanceTurnCounters(state);
+    return {
+      actorId: actor.id,
+      actorName: actor.name,
+      decisionReport: decisionReport2,
+      resolutionNarrative: narrative,
+      eventRecorded: evt
+    };
+  }
   const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
   const chosen = decisionReport.selectedCandidate;
   const action = chosen.action;
@@ -1724,7 +1766,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
     if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== "unconscious");
+      target.conditions = target.conditions.filter((c) => c !== "unconscious" && c !== "dying");
       target.deathSaves = { successes: 0, failures: 0, isStable: true };
     }
     resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u5C55\u3010${action.name}\u3011\u6062\u5FA9 ${target.hp - prevHp} \u9EDE HP (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
@@ -2034,6 +2076,31 @@ function campaignBookToWorldState(book, seed = 42) {
         });
       }
     }
+    const castingScore = member.spellcasting?.ability ? abilities[member.spellcasting.ability]?.score : void 0;
+    const castingMod = castingScore !== void 0 ? Math.floor((castingScore - 10) / 2) : 0;
+    const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
+    const healSpells = {
+      "cure wounds": { id: "cure_wounds", name: "\u7642\u50B7\u8853 (Cure Wounds)", range: 1, dice: "1d8" },
+      "healing word": { id: "healing_word", name: "\u6CBB\u7652\u771F\u8A00 (Healing Word)", range: 12, dice: "1d4" }
+    };
+    for (const spell of member.spellcasting?.preparedSpells ?? []) {
+      const def = healSpells[spell.toLowerCase()];
+      if (def && !actions.some((a) => a.id === def.id)) {
+        actions.push({
+          id: def.id,
+          name: def.name,
+          type: "heal",
+          range: def.range,
+          healFormula: `${def.dice}${modSuffix}`,
+          spellLevel: 1
+        });
+      }
+    }
+    const spellSlots = {};
+    for (const [level, slot] of Object.entries(member.spellcasting?.slots ?? {})) {
+      const max = slot.max ?? slot.current ?? 0;
+      spellSlots[Number(level)] = { current: slot.current ?? max, max };
+    }
     return baseCombatant({
       id: member.id,
       name: member.name,
@@ -2056,7 +2123,8 @@ function campaignBookToWorldState(book, seed = 42) {
         wis: abilities.WIS?.score,
         cha: abilities.CHA?.score,
         proficiencyBonus: member.proficiencyBonus ?? 2,
-        skills: member.skills
+        skills: member.skills,
+        spellSlots: Object.keys(spellSlots).length > 0 ? spellSlots : void 0
       },
       actions
     });

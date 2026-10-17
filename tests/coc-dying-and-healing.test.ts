@@ -1,0 +1,56 @@
+/**
+ * Regression checks for two engine fixes:
+ * 1. CoC 7e: 0 HP no longer kills an investigator outright (major wound -> dying, else unconscious).
+ * 2. D&D 5e: prepared healing spells in `spellcasting` become heal actions, with spell slots.
+ *
+ * Run: node --experimental-strip-types tests/coc-dying-and-healing.test.ts
+ */
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
+import { applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
+import { stepCombatTurn } from '../src/engine/stateStore.ts';
+
+const load = (name: string) =>
+  JSON.parse(readFileSync(new URL(`../examples/campaign-${name}.json`, import.meta.url), 'utf8'));
+
+// 1a. Major wound at 0 HP -> unconscious + dying, still alive.
+const coc = campaignBookToWorldState(load('arkham-shadow'));
+const hero = coc.combatants['trpg-companion-vanguard'];
+hero.hp = 8;
+applyCoC7eDamage(hero, 11);
+assert.equal(hero.hp, 0);
+assert.equal(hero.isAlive, true);
+for (const c of ['major_wound', 'unconscious', 'dying']) assert.ok(hero.conditions.includes(c), c);
+
+// 1b. No major wound at 0 HP -> unconscious only.
+const rogue = coc.combatants['trpg-companion-rogue'];
+rogue.hp = 2;
+applyCoC7eDamage(rogue, 2);
+assert.equal(rogue.isAlive, true);
+assert.ok(rogue.conditions.includes('unconscious'));
+assert.ok(!rogue.conditions.includes('dying'));
+
+// 1c. Monsters still die at 0 HP.
+const cultist = Object.values(coc.combatants).find((c) => c.faction === 'enemy');
+if (cultist) {
+  applyCoC7eDamage(cultist, 999);
+  assert.equal(cultist.isAlive, false);
+}
+
+// 1d. A dying actor's turn is a CON check, never an attack; a downed one just loses the turn.
+const state = campaignBookToWorldState(load('arkham-shadow'));
+const dying = state.combatants['trpg-companion-vanguard'];
+dying.hp = 0;
+dying.conditions.push('unconscious', 'dying');
+const turn = stepCombatTurn(state, 'trpg-companion-vanguard');
+assert.match(turn.resolutionNarrative, /CON/);
+
+// 2. Healing spells and slots from `spellcasting`.
+const dnd = campaignBookToWorldState(load('crimson-crypt'));
+const healer = dnd.combatants['trpg-companion-healer'];
+const ids = healer.actions.filter((a) => a.type === 'heal').map((a) => a.id);
+assert.ok(ids.includes('cure_wounds') && ids.includes('healing_word'), `heal ids: ${ids}`);
+assert.equal(healer.stats.spellSlots?.[1]?.max, 4);
+
+console.log('coc-dying-and-healing: all assertions passed');

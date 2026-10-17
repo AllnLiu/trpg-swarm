@@ -350,7 +350,7 @@ export type CoCSuccessLevel =
   | 'Failure'
   | 'Fumble';
 
-const COC_LEVEL_RANK: Record<CoCSuccessLevel, number> = {
+export const COC_LEVEL_RANK: Record<CoCSuccessLevel, number> = {
   Fumble: 0,
   Failure: 1,
   Regular: 2,
@@ -578,6 +578,28 @@ export interface CoC7eOpposedCombatResolution {
   narrative: string;
 }
 
+/**
+ * CoC 7e damage per references/coc7e-rules.md: a single hit of at least half max HP is a
+ * major wound. At 0 HP an investigator with a major wound is dying (CON check each turn,
+ * stabilised by First Aid or Medicine); without one the investigator is only unconscious.
+ * Monsters (enemy faction) still die at 0 HP.
+ */
+export function applyCoC7eDamage(target: Combatant, damage: number): void {
+  target.hp = Math.max(0, target.hp - damage);
+  if (damage >= Math.ceil(target.maxHp / 2) && !target.conditions.includes('major_wound')) {
+    target.conditions.push('major_wound');
+  }
+  if (target.hp > 0) return;
+  if (target.faction === 'enemy') {
+    target.isAlive = false;
+    return;
+  }
+  if (!target.conditions.includes('unconscious')) target.conditions.push('unconscious');
+  if (target.conditions.includes('major_wound') && !target.conditions.includes('dying')) {
+    target.conditions.push('dying');
+  }
+}
+
 export function resolveCoC7eOpposedCombat(
   attacker: Combatant,
   defender: Combatant,
@@ -627,12 +649,10 @@ export function resolveCoC7eOpposedCombat(
     } else {
       damageDealt = rollDice(baseDamageFormula, rng).total;
     }
-    defender.hp = Math.max(0, defender.hp - damageDealt);
-    if (defender.hp === 0) defender.isAlive = false;
+    applyCoC7eDamage(defender, damageDealt);
   } else if (winner === 'defender' && defenseMode === 'fight_back') {
     damageDealt = rollDice('1d4+1', rng).total;
-    attacker.hp = Math.max(0, attacker.hp - damageDealt);
-    if (attacker.hp === 0) attacker.isAlive = false;
+    applyCoC7eDamage(attacker, damageDealt);
   }
 
   const narrative = `CoC 7e 對抗近戰：${attacker.name} 攻擊 [${attackerCheck.roll.total}/${attackerCheck.level}] vs ${defender.name} ${defenseMode === 'dodge' ? '閃避' : '反擊'} [${defenderCheck.roll.total}/${defenderCheck.level}] => ${

@@ -53,6 +53,11 @@ interface BookPartyMember {
   skills?: Record<string, number>;
   attacks?: BookAttack[];
   resources?: Record<string, { current?: number; max?: number; effect?: string }>;
+  spellcasting?: {
+    ability?: string;
+    slots?: Record<string, { current?: number; max?: number }>;
+    preparedSpells?: string[];
+  };
   // CoC 7e shape
   occupation?: string;
   characteristics?: Record<string, number>;
@@ -326,6 +331,35 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         });
       }
     }
+    // Prepared healing spells become heal actions (1 tile = 5 ft). Without this, a healer
+    // defined through `spellcasting` never gets a heal candidate.
+    const castingScore = member.spellcasting?.ability
+      ? abilities[member.spellcasting.ability]?.score
+      : undefined;
+    const castingMod = castingScore !== undefined ? Math.floor((castingScore - 10) / 2) : 0;
+    const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
+    const healSpells: Record<string, { id: string; name: string; range: number; dice: string }> = {
+      'cure wounds': { id: 'cure_wounds', name: '療傷術 (Cure Wounds)', range: 1, dice: '1d8' },
+      'healing word': { id: 'healing_word', name: '治癒真言 (Healing Word)', range: 12, dice: '1d4' },
+    };
+    for (const spell of member.spellcasting?.preparedSpells ?? []) {
+      const def = healSpells[spell.toLowerCase()];
+      if (def && !actions.some((a) => a.id === def.id)) {
+        actions.push({
+          id: def.id,
+          name: def.name,
+          type: 'heal',
+          range: def.range,
+          healFormula: `${def.dice}${modSuffix}`,
+          spellLevel: 1,
+        });
+      }
+    }
+    const spellSlots: Record<number, { current: number; max: number }> = {};
+    for (const [level, slot] of Object.entries(member.spellcasting?.slots ?? {})) {
+      const max = slot.max ?? slot.current ?? 0;
+      spellSlots[Number(level)] = { current: slot.current ?? max, max };
+    }
     return baseCombatant({
       id: member.id,
       name: member.name,
@@ -349,6 +383,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         cha: abilities.CHA?.score,
         proficiencyBonus: member.proficiencyBonus ?? 2,
         skills: member.skills,
+        spellSlots: Object.keys(spellSlots).length > 0 ? spellSlots : undefined,
       },
       actions,
     });
