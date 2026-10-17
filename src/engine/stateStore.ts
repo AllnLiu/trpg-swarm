@@ -17,6 +17,7 @@ import { DeterministicRNG, rollDice } from './dice.ts';
 import {
   COC_LEVEL_RANK,
   clearDowned,
+  resolveCoC7eDeathCheck,
   resolveCoC7eCheck,
   resolveCoC7eOpposedCombat,
   resolveCoC7eSanity,
@@ -747,14 +748,9 @@ export function stepCombatTurn(
     const dying = actor.conditions.includes('dying');
     let narrative = `${actor.name} 昏迷不醒，無法行動。`;
     if (dying) {
-      const con = resolveCoC7eCheck({ skill: actor.stats.con ?? 50, rng });
-      if (con.levelRank >= COC_LEVEL_RANK.Regular) {
-        narrative = `${actor.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 成功，勉強撐過這一輪。`;
-      } else {
-        actor.isAlive = false;
-        narrative = `${actor.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 失敗，【死亡】。`;
-        upsertSemanticFact(state, actor.id, 'status', 'dead', 'npc');
-      }
+      const check = resolveCoC7eDeathCheck(actor, rng);
+      narrative = check.narrative;
+      if (check.isDead) upsertSemanticFact(state, actor.id, 'status', 'dead', 'npc');
     }
     return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
   }
@@ -784,7 +780,7 @@ export function stepCombatTurn(
       resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 失敗，沒能穩定傷勢。`;
     } else {
       const prevHp = target.hp;
-      target.hp = Math.min(target.maxHp, target.hp + 1);
+      target.hp = Math.min(target.maxHp, target.hp + Math.max(1, rollDice(action.healFormula ?? '1', rng).total));
       if (prevHp === 0) clearDowned(target);
       resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 成功，傷勢穩定 (${prevHp} -> ${target.hp}/${target.maxHp})。`;
     }

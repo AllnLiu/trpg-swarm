@@ -624,6 +624,19 @@ export function adjustDamageForType(damage: number, damageType: string | undefin
   return damage;
 }
 
+/** CoC 7e dying turn: a CON check each round; a failure is death. Mirrors resolveDnD5eDeathSave. */
+export function resolveCoC7eDeathCheck(
+  combatant: Combatant,
+  rng: DeterministicRNG = getGlobalRng()
+): { isDead: boolean; narrative: string } {
+  const con = resolveCoC7eCheck({ skill: combatant.stats.con ?? 50, rng });
+  if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+    return { isDead: false, narrative: `${combatant.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 成功，勉強撐過這一輪。` };
+  }
+  combatant.isAlive = false;
+  return { isDead: true, narrative: `${combatant.name} 瀕死，CON 檢定 [${con.roll.total}/${con.level}] 失敗，【死亡】。` };
+}
+
 /** An ally back above 0 HP is no longer downed: clear unconscious and dying, reset death saves. */
 export function clearDowned(c: Combatant): void {
   c.conditions = c.conditions.filter((x) => x !== 'unconscious' && x !== 'dying');

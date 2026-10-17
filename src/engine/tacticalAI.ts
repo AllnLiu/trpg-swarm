@@ -558,7 +558,10 @@ export function evaluateTacticalActions(
         (!preferredActionId || c.id === preferredActionId || c.action.id === preferredActionId) &&
         (!preferredTargetId || c.targetId === preferredTargetId)
     );
-    const override = [...pool].sort((a, b) => b.totalUtility - a.totalUtility)[0];
+    const override = pool.reduce<(typeof pool)[number] | undefined>(
+      (best, c) => (!best || c.totalUtility > best.totalUtility ? c : best),
+      undefined
+    );
     if (!override) {
       const unique = (ids: string[]) => [...new Set(ids)];
       const legalActionIds = unique(candidates.map((c) => c.action.id));
@@ -568,13 +571,13 @@ export function evaluateTacticalActions(
           .map((c) => c.targetId)
           .filter((id): id is string => Boolean(id))
       );
+      const actionOk = !preferredActionId || legalActionIds.includes(preferredActionId);
       throw new Error(
-        preferredTargetId && (!preferredActionId || legalActionIds.includes(preferredActionId))
+        (actionOk
           ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})` +
-              `${preferredActionId ? ` with action "${preferredActionId}"` : ''}. ` +
-              `Legal target ids: ${legalTargetIds.join(', ')}.`
-          : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). ` +
-              `Legal action ids: ${legalActionIds.join(', ')}. Re-run ai-decide for current candidates.`
+            `${preferredActionId ? ` with action "${preferredActionId}"` : ''}. `
+          : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) +
+          `Legal action ids: ${legalActionIds.join(', ')}. Legal target ids: ${legalTargetIds.join(', ')}.`
       );
     }
     selectedCandidate = override;

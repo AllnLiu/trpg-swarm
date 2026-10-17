@@ -583,6 +583,14 @@ function adjustDamageForType(damage, damageType, target) {
   if (vulnerable && !resisted) return damage * 2;
   return damage;
 }
+function resolveCoC7eDeathCheck(combatant, rng = getGlobalRng()) {
+  const con = resolveCoC7eCheck({ skill: combatant.stats.con ?? 50, rng });
+  if (con.levelRank >= COC_LEVEL_RANK.Regular) {
+    return { isDead: false, narrative: `${combatant.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u6210\u529F\uFF0C\u52C9\u5F37\u6490\u904E\u9019\u4E00\u8F2A\u3002` };
+  }
+  combatant.isAlive = false;
+  return { isDead: true, narrative: `${combatant.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u5931\u6557\uFF0C\u3010\u6B7B\u4EA1\u3011\u3002` };
+}
 function clearDowned(c) {
   c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
   c.deathSaves = { successes: 0, failures: 0, isStable: true };
@@ -1085,15 +1093,19 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
     const pool = candidates.filter(
       (c) => (!preferredActionId || c.id === preferredActionId || c.action.id === preferredActionId) && (!preferredTargetId || c.targetId === preferredTargetId)
     );
-    const override = [...pool].sort((a, b2) => b2.totalUtility - a.totalUtility)[0];
+    const override = pool.reduce(
+      (best, c) => !best || c.totalUtility > best.totalUtility ? c : best,
+      void 0
+    );
     if (!override) {
       const unique = (ids) => [...new Set(ids)];
       const legalActionIds = unique(candidates.map((c) => c.action.id));
       const legalTargetIds = unique(
         candidates.filter((c) => !preferredActionId || c.action.id === preferredActionId).map((c) => c.targetId).filter((id) => Boolean(id))
       );
+      const actionOk = !preferredActionId || legalActionIds.includes(preferredActionId);
       throw new Error(
-        preferredTargetId && (!preferredActionId || legalActionIds.includes(preferredActionId)) ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. Legal target ids: ${legalTargetIds.join(", ")}.` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). Legal action ids: ${legalActionIds.join(", ")}. Re-run ai-decide for current candidates.`
+        (actionOk ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. ` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) + `Legal action ids: ${legalActionIds.join(", ")}. Legal target ids: ${legalTargetIds.join(", ")}.`
       );
     }
     selectedCandidate = override;
@@ -1757,14 +1769,9 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     const dying = actor.conditions.includes("dying");
     let narrative = `${actor.name} \u660F\u8FF7\u4E0D\u9192\uFF0C\u7121\u6CD5\u884C\u52D5\u3002`;
     if (dying) {
-      const con = resolveCoC7eCheck({ skill: actor.stats.con ?? 50, rng });
-      if (con.levelRank >= COC_LEVEL_RANK.Regular) {
-        narrative = `${actor.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u6210\u529F\uFF0C\u52C9\u5F37\u6490\u904E\u9019\u4E00\u8F2A\u3002`;
-      } else {
-        actor.isAlive = false;
-        narrative = `${actor.name} \u7015\u6B7B\uFF0CCON \u6AA2\u5B9A [${con.roll.total}/${con.level}] \u5931\u6557\uFF0C\u3010\u6B7B\u4EA1\u3011\u3002`;
-        upsertSemanticFact(state, actor.id, "status", "dead", "npc");
-      }
+      const check = resolveCoC7eDeathCheck(actor, rng);
+      narrative = check.narrative;
+      if (check.isDead) upsertSemanticFact(state, actor.id, "status", "dead", "npc");
     }
     return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
   }
@@ -1786,7 +1793,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
       resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u5931\u6557\uFF0C\u6C92\u80FD\u7A69\u5B9A\u50B7\u52E2\u3002`;
     } else {
       const prevHp = target.hp;
-      target.hp = Math.min(target.maxHp, target.hp + 1);
+      target.hp = Math.min(target.maxHp, target.hp + Math.max(1, rollDice(action.healFormula ?? "1", rng).total));
       if (prevHp === 0) clearDowned(target);
       resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u6210\u529F\uFF0C\u50B7\u52E2\u7A69\u5B9A (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
     }
