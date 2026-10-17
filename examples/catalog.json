@@ -43,7 +43,9 @@
     "license": "CC-BY-3.0",
     "synopsis": "荒野邊陲的深谷山壁間，隱藏著一座散發惡臭與刺耳譏笑的哥布林洞窟。成群的掠奪者在此盤踞，布設了粗糙卻致命的原木擺錘陷阱。冒險者小隊受邊境哨所委託潛入洞窟，深入獸欄並討伐首領『碎齒』，奪回被劫掠的物資。",
     "author": "Marshall Miller",
-    "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters"
+    "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters",
+    "publisher": "Lampblack & Brimstone",
+    "rulesUrl": "https://github.com/Sagelt/Dungeon-World"
   },
   {
     "id": "campaign-gilliard-mound",
@@ -59,7 +61,9 @@
     "license": "CC-BY-SA-3.0",
     "synopsis": "荒野高地頂端的石塚之中，埋葬著遠古野蠻人狼族的末代酋長吉利亞德。近日盜墓者的挖掘驚醒了墓穴中的守護狼魂與骸骨狂戰士。冒險者受命深入被破壞的古塚，平息騷動並奪回被詛咒的狼首護符。",
     "author": "Josh Burnett",
-    "sourceUrl": "https://bernietheflumph.blogspot.com/2013/04/the-burial-mound-of-gilliard-wolfclan.html"
+    "sourceUrl": "https://bernietheflumph.blogspot.com/2013/04/the-burial-mound-of-gilliard-wolfclan.html",
+    "rulesUrl": "https://www.dungeoncontest.com/opdc-rules",
+    "srdNotice": "SRD 5.1 CC BY 4.0"
   },
   {
     "id": "campaign-randolph-carter",

@@ -4,7 +4,7 @@
   "system": "pbta",
   "version": "1.0.0",
   "license": "CC-BY-3.0 Unported",
-  "attribution": "The Goblin Hole © Marshall Miller (Fine Mess Games), used under CC BY 3.0. Based on Dungeon World by Sage LaTorra & Adam Koebel.",
+  "attribution": "The Goblin Hole from '20 Dungeon Starters' © Marshall Miller & Mark Tygart (Lampblack & Brimstone), explicitly licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0). Core PbtA rules based on Dungeon World by Sage LaTorra & Adam Koebel (CC BY 3.0, https://github.com/Sagelt/Dungeon-World).",
   "synopsis": "荒野邊陲的深谷山壁間，隱藏著一座散發惡臭與刺耳譏笑的哥布林洞窟。成群的掠奪者在此盤踞，布設了粗糙卻致命的原木擺錘陷阱。冒險者小隊受邊境哨所委託潛入洞窟，深入獸欄並討伐首領『碎齒』，奪回被劫掠的物資。",
   "sessionState": {
     "round": 1,
@@ -370,5 +370,6 @@
   ],
   "author": "Marshall Miller",
   "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters",
-  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "dungeonWorldUrl": "https://github.com/Sagelt/Dungeon-World"
 }
