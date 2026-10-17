@@ -564,8 +564,9 @@ function dropAtZeroHp(c) {
     c.isAlive = false;
     return;
   }
+  if (c.conditions.includes("unconscious") && c.deathSaves) return;
   if (!c.conditions.includes("unconscious")) c.conditions.push("unconscious");
-  c.deathSaves = c.deathSaves ?? { successes: 0, failures: 0, isStable: false };
+  c.deathSaves = { successes: 0, failures: 0, isStable: false };
 }
 function takeDnDDamage(target, amount, damageType) {
   const adjusted = adjustDamageForType(amount, damageType, target);

@@ -156,5 +156,14 @@ for (let i = 0; i < 20 && !faller.conditions.includes('unconscious'); i++) {
 }
 assert.equal(faller.hp, 0);
 assert.ok(faller.conditions.includes('unconscious') && faller.isAlive, 'save damage downs the ally');
+// Revived (clearDowned leaves isStable true), then dropped again: death saves start fresh and unstable.
+adjustCombatant(fall, faller.id, { hp: '+3' });
+assert.equal(faller.deathSaves?.isStable, true);
+for (let i = 0; i < 20 && faller.hp > 0; i++) {
+  faller.hp = 1;
+  resolveDnD5eSavingThrow(fall.combatants['enemy-skeleton-guard-1'], faller, trap, false);
+}
+assert.equal(faller.hp, 0);
+assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability');
 
 console.log('engine-fixes: all assertions passed');

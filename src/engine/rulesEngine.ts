@@ -600,8 +600,9 @@ function dropAtZeroHp(c: Combatant): void {
     c.isAlive = false;
     return;
   }
+  if (c.conditions.includes('unconscious') && c.deathSaves) return;
   if (!c.conditions.includes('unconscious')) c.conditions.push('unconscious');
-  c.deathSaves = c.deathSaves ?? { successes: 0, failures: 0, isStable: false };
+  c.deathSaves = { successes: 0, failures: 0, isStable: false };
 }
 
 /** Apply D&D damage to a target: type modifiers, then temp HP, then hp. Returns the adjusted damage. */
