@@ -35,9 +35,20 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   'crimson-crypt': 'campaign-crimson-crypt.json',
   crimson: 'campaign-crimson-crypt.json',
   dnd5e: 'campaign-crimson-crypt.json',
+  'most-potent-brew': 'campaign-most-potent-brew.json',
+  'potent-brew': 'campaign-most-potent-brew.json',
+  brew: 'campaign-most-potent-brew.json',
   'arkham-shadow': 'campaign-arkham-shadow.json',
   arkham: 'campaign-arkham-shadow.json',
   coc7e: 'campaign-arkham-shadow.json',
+  'edge-of-darkness': 'campaign-edge-of-darkness.json',
+  edge: 'campaign-edge-of-darkness.json',
+  'dead-light': 'campaign-dead-light.json',
+  deadlight: 'campaign-dead-light.json',
+  'indigo-galleon': 'campaign-indigo-galleon.json',
+  indigo: 'campaign-indigo-galleon.json',
+  galleon: 'campaign-indigo-galleon.json',
+  pbta: 'campaign-indigo-galleon.json',
 };
 
 interface ParsedArgs {
