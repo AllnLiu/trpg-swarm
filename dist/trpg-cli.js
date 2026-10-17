@@ -2040,8 +2040,9 @@ function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48) || "action";
 }
 function rangeToTiles(rangeStr) {
+  if (typeof rangeStr === "number") return rangeStr;
   if (!rangeStr) return 1;
-  const match = rangeStr.match(/(\d+)\s*(?:\/\s*(\d+))?\s*(ft|yds|yd)/i);
+  const match = String(rangeStr).match(/(\d+)\s*(?:\/\s*(\d+))?\s*(ft|yds|yd)/i);
   if (!match) return 1;
   const unit = match[3].toLowerCase().startsWith("yd") ? 3 : 5;
   const longest = Number(match[2] ?? match[1]);
@@ -2405,7 +2406,13 @@ var EXAMPLE_ALIASES = {
   corbitt: "campaign-haunting-corbitt.json",
   "goblin-hole": "pbta/goblin-hole.json",
   goblin: "pbta/goblin-hole.json",
-  pbta: "pbta/goblin-hole.json"
+  pbta: "pbta/goblin-hole.json",
+  "gilliard-mound": "dnd5e/gilliard-mound.json",
+  gilliard: "dnd5e/gilliard-mound.json",
+  wolfclan: "dnd5e/gilliard-mound.json",
+  "randolph-carter": "coc7e/randolph-carter.json",
+  carter: "coc7e/randolph-carter.json",
+  "cypress-crypt": "coc7e/randolph-carter.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);

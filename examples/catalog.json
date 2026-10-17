@@ -38,5 +38,33 @@
     "partySize": 3,
     "license": "CC-BY-3.0 (Marshall Miller / Dungeon World)",
     "synopsis": "荒野邊陲的深谷山壁間，隱藏著一座散發惡臭與刺耳譏笑的哥布林洞窟。成群的掠奪者在此盤踞，布設了粗糙卻致命的原木擺錘陷阱。冒險者小隊受邊境哨所委託潛入洞窟，深入獸欄並討伐首領『碎齒』，奪回被劫掠的物資。"
+  },
+  {
+    "id": "campaign-gilliard-mound",
+    "title": "吉利亞德狼塚 (The Burial Mound of Gilliard Wolfclan)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/gilliard-mound.json",
+    "alias": [
+      "gilliard-mound",
+      "gilliard",
+      "wolfclan"
+    ],
+    "partySize": 2,
+    "license": "CC-BY-SA-3.0 (One Page Dungeon Contest)",
+    "synopsis": "荒野高地頂端的石塚之中，埋葬著遠古野蠻人狼族的末代酋長吉利亞德。近日盜墓者的挖掘驚醒了墓穴中的守護狼魂與骸骨狂戰士。冒險者受命深入被破壞的古塚，平息騷動並奪回被詛咒的狼首護符。"
+  },
+  {
+    "id": "campaign-randolph-carter",
+    "title": "倫道夫·卡特的陳述：柏樹古墓 (The Statement of Randolph Carter)",
+    "system": "coc7e",
+    "relativePath": "coc7e/randolph-carter.json",
+    "alias": [
+      "randolph-carter",
+      "carter",
+      "cypress-crypt"
+    ],
+    "partySize": 2,
+    "license": "Public Domain (H. P. Lovecraft, 1919)",
+    "synopsis": "半夜時分，倫道夫·卡特與研究神秘古籍的學者哈利·華倫深入大柏樹沼澤的一處古老廢棄墓園。他們撬開了一塊沉重的花崗岩墓石板，華倫帶著便攜式電話線獨自步入漆黑石階深處。然而電話筒那端隨即傳來了恐懼的尖叫與不可名狀之物的低語……"
   }
 ]

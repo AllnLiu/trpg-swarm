@@ -45,6 +45,12 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   'goblin-hole': 'pbta/goblin-hole.json',
   goblin: 'pbta/goblin-hole.json',
   pbta: 'pbta/goblin-hole.json',
+  'gilliard-mound': 'dnd5e/gilliard-mound.json',
+  gilliard: 'dnd5e/gilliard-mound.json',
+  wolfclan: 'dnd5e/gilliard-mound.json',
+  'randolph-carter': 'coc7e/randolph-carter.json',
+  carter: 'coc7e/randolph-carter.json',
+  'cypress-crypt': 'coc7e/randolph-carter.json',
 };
 
 interface ParsedArgs {
