@@ -112,5 +112,38 @@
     "sourceUrl": "https://en.wikisource.org/wiki/The_Colour_Out_of_Space",
     "license": "Public Domain (1927)",
     "synopsis": "阿卡姆西側的山丘深處，有一片寸草不生、覆蓋著細灰的『枯萎荒原』。一年前一顆奇異隕石墜落於加德納農莊的深井旁，隨後農場的作物與牲畜開始散發無法名狀的詭異色澤並逐漸枯萎崩解。調查員受波士頓測繪局委託前來勘查，必須在心智被那不可名狀的星之彩吸乾前查清老井的真相。"
+  },
+  {
+    "id": "campaign-erich-zann",
+    "title": "埃里克·贊之樂 (The Music of Erich Zann)",
+    "system": "coc7e",
+    "relativePath": "coc7e/erich-zann.json",
+    "alias": [
+      "erich-zann",
+      "zann",
+      "music-of-zann"
+    ],
+    "partySize": 1,
+    "author": "H. P. Lovecraft (1921/1922)",
+    "sourceUrl": "https://en.wikisource.org/wiki/The_Music_of_Erich_Zann",
+    "license": "Public Domain (1922)",
+    "synopsis": "一名在巴黎留學的年輕哲學學生，寄宿在陡峭陰鬱的奧賽爾街頂層公寓。在他樓上閣樓住著一位性格怪僻且失語的老年德意志琴師埃里克·贊。每當深夜，窗外狂風怒號，贊先生便拉奏出非世間凡人所能想像的狂亂弦律。學生決定深夜前去探訪，卻目睹了琴室背後那連通宇宙深空虛無的窗戶……"
+  },
+  {
+    "id": "campaign-sky-chain",
+    "title": "空之鎖鏈 (The Sky Chain)",
+    "system": "pbta",
+    "relativePath": "pbta/sky-chain.json",
+    "alias": [
+      "sky-chain",
+      "skychain"
+    ],
+    "partySize": 1,
+    "license": "CC-BY-3.0",
+    "synopsis": "一條貫穿天際的泰坦巨鏈自蒼穹深處垂落，鎖鏈每一環都如同一座漂浮的神殿。狂風暴雨中，小隊攀登巨鏈來到被雷擊焦黑的浮空神壇。雷霆鷹身女妖正盤旋於鎖環頂端，守護著古代雲中巨人的雷霆之心結晶。",
+    "author": "Marshall Miller",
+    "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters",
+    "publisher": "Lampblack & Brimstone",
+    "rulesUrl": "https://github.com/Sagelt/Dungeon-World"
   }
 ]

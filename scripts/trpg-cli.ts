@@ -57,6 +57,10 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   'colour-out-of-space': 'coc7e/colour-out-of-space.json',
   colour: 'coc7e/colour-out-of-space.json',
   'blasted-heath': 'coc7e/colour-out-of-space.json',
+  'erich-zann': 'coc7e/erich-zann.json',
+  zann: 'coc7e/erich-zann.json',
+  'sky-chain': 'pbta/sky-chain.json',
+  skychain: 'pbta/sky-chain.json',
 };
 
 interface ParsedArgs {

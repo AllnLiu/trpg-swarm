@@ -1,0 +1,143 @@
+{
+  "campaignId": "campaign-sky-chain",
+  "title": "空之鎖鏈 (The Sky Chain)",
+  "system": "pbta",
+  "version": "1.0.0",
+  "author": "Marshall Miller",
+  "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters",
+  "publisher": "Lampblack & Brimstone",
+  "license": "CC-BY-3.0 Unported",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "dungeonWorldUrl": "https://github.com/Sagelt/Dungeon-World",
+  "attribution": "The Sky Chain from '20 Dungeon Starters' © Marshall Miller & Mark Tygart (Lampblack & Brimstone), explicitly licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0). Core PbtA rules based on Dungeon World by Sage LaTorra & Adam Koebel (CC BY 3.0, https://github.com/Sagelt/Dungeon-World).",
+  "synopsis": "一條貫穿天際的泰坦巨鏈自蒼穹深處垂落，鎖鏈每一環都如同一座漂浮的神殿。狂風暴雨中，小隊攀登巨鏈來到被雷擊焦黑的浮空神壇。雷霆鷹身女妖正盤旋於鎖環頂端，守護著古代雲中巨人的雷霆之心結晶。",
+  "sessionState": {
+    "round": 1,
+    "turn": 1,
+    "activeEncounter": "area-1-cloud-link",
+    "sceneId": "area-1-cloud-link",
+    "dangerLevel": 3
+  },
+  "party": [
+    {
+      "id": "player-hero",
+      "name": "艾拉·疾風 (Ayla Windstrider)",
+      "controlledBy": "human",
+      "race": "Elf",
+      "class": "The Ranger (遊俠)",
+      "level": 1,
+      "hp": {
+        "current": 18,
+        "max": 18
+      },
+      "armor": 1,
+      "pbtaMods": {
+        "str": 0,
+        "dex": 2,
+        "con": 1,
+        "int": 0,
+        "wis": 2,
+        "cha": -1
+      },
+      "actions": [
+        {
+          "id": "volley",
+          "name": "連環疾射 (Volley)",
+          "type": "attack",
+          "range": 10,
+          "damageFormula": "1d8",
+          "pbtaStat": "dex"
+        },
+        {
+          "id": "hack-and-slash",
+          "name": "獵刀近擊 (Hack and Slash)",
+          "type": "attack",
+          "range": 1,
+          "damageFormula": "1d6",
+          "pbtaStat": "str"
+        }
+      ],
+      "inventory": [
+        "長弓",
+        "獵刀",
+        "登山繩",
+        "乾糧"
+      ],
+      "position": {
+        "areaId": "area-1-cloud-link",
+        "x": 2,
+        "y": 2
+      }
+    }
+  ],
+  "dungeonAreas": [
+    {
+      "areaId": "area-1-cloud-link",
+      "name": "鎖環雲梯 (The Iron Link in the Clouds)",
+      "gridSize": {
+        "width": 8,
+        "height": 6
+      },
+      "ambientDescription": "冰冷的巨型鐵環表面覆蓋著厚厚的霜雪與苔蘚，狂風呼嘯。羽毛閃爍電弧的風暴幼雛在鎖鍊邊緣低空滑翔撲擊。",
+      "encounters": [
+        {
+          "entityId": "enemy-storm-harpy",
+          "name": "風暴幼鷂 (Storm Hatchling)",
+          "monsterType": "Beast",
+          "status": "active",
+          "ac": 11,
+          "hp": {
+            "current": 8,
+            "max": 8
+          },
+          "speed": 35,
+          "attacks": [
+            {
+              "name": "電光利爪",
+              "bonus": 3,
+              "damage": "1d6"
+            }
+          ],
+          "position": {
+            "x": 5,
+            "y": 3
+          }
+        }
+      ]
+    },
+    {
+      "areaId": "area-2-titan-altar",
+      "name": "風暴聖壇 (Altar of the Cloud Titan)",
+      "gridSize": {
+        "width": 10,
+        "height": 8
+      },
+      "ambientDescription": "鎖環頂部的神壇懸浮在雲海之巔。風暴女王『雷嘯』立於古老雕像頭頂，雙翼振盪引動雷電轟鳴。",
+      "encounters": [
+        {
+          "entityId": "boss-queen-thunder-shriek",
+          "name": "風暴女王雷嘯 (Queen Thunder-Shriek)",
+          "monsterType": "Monstrosity",
+          "status": "active",
+          "ac": 13,
+          "hp": {
+            "current": 20,
+            "max": 20
+          },
+          "speed": 40,
+          "attacks": [
+            {
+              "name": "雷霆裂空槍",
+              "bonus": 5,
+              "damage": "1d10+1"
+            }
+          ],
+          "position": {
+            "x": 6,
+            "y": 4
+          }
+        }
+      ]
+    }
+  ]
+}
