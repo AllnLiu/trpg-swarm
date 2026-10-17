@@ -135,7 +135,7 @@ export function resolveDnD5eAttack(opts: DnD5eAttackOptions): DnD5eAttackResolut
     const baseFormula = action.damageFormula ?? '1d8+3';
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = Math.max(1, damageRoll.total);
+    totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
 
     defender.hp = Math.max(0, defender.hp - totalDamage);
     if (defender.hp === 0) {
@@ -227,6 +227,7 @@ export function resolveDnD5eSavingThrow(
     } else {
       damageTaken = damageRoll.total;
     }
+    damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
     target.hp = Math.max(0, target.hp - damageTaken);
     if (target.hp === 0 && target.faction === 'enemy') {
       target.isAlive = false;
@@ -598,6 +599,18 @@ export function applyCoC7eDamage(target: Combatant, damage: number): void {
   if (target.conditions.includes('major_wound') && !target.conditions.includes('dying')) {
     target.conditions.push('dying');
   }
+}
+
+/** D&D 5e damage-type modifiers: immunity -> 0, resistance -> half, vulnerability -> double (both cancel). */
+export function adjustDamageForType(damage: number, damageType: string | undefined, target: Combatant): number {
+  if (!damageType) return damage;
+  const type = damageType.toLowerCase();
+  if (target.stats.immunities?.includes(type)) return 0;
+  const resisted = target.stats.resistances?.includes(type) ?? false;
+  const vulnerable = target.stats.vulnerabilities?.includes(type) ?? false;
+  if (resisted && !vulnerable) return Math.floor(damage / 2);
+  if (vulnerable && !resisted) return damage * 2;
+  return damage;
 }
 
 export function resolveCoC7eOpposedCombat(

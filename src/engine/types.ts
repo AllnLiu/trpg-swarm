@@ -48,6 +48,10 @@ export interface CharacterStats {
   wis?: number;
   cha?: number;
   proficiencyBonus?: number;
+  // D&D damage-type modifiers (lowercase types such as 'poison', 'bludgeoning', 'necrotic')
+  resistances?: string[];
+  immunities?: string[];
+  vulnerabilities?: string[];
   spellSlots?: Record<number, { current: number; max: number }>;
 
   // CoC 7e core attributes (1-100) & investigator resources
@@ -82,6 +86,7 @@ export interface AbilityOrAction {
   aoeRadius?: number; // In grid tiles (0 or undefined = single target)
   attackBonus?: number;
   damageFormula?: string;
+  damageType?: string;
   healFormula?: string;
   spellLevel?: number; // 0 = cantrip, 1-9 = leveled spell
   saveAbility?: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';

@@ -36,6 +36,7 @@ interface BookAttack {
   skill?: string | number;
   percentage?: number;
   damage?: string;
+  damageType?: string;
   range?: string;
 }
 
@@ -84,6 +85,9 @@ interface BookEncounter {
   mov?: number;
   dex?: number;
   attacks?: BookAttack[];
+  resistances?: string[];
+  immunities?: string[];
+  vulnerabilities?: string[];
   position?: { x: number; y: number };
 }
 
@@ -216,6 +220,7 @@ function dndAttackToAction(attack: BookAttack): AbilityOrAction {
     range: tiles,
     attackBonus: attack.bonus,
     damageFormula: attack.damage,
+    damageType: attack.damageType?.toLowerCase(),
   };
 }
 
@@ -421,7 +426,13 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
         ? Math.max(2, Math.round(encounter.speed / 5))
         : Math.max(2, Math.round((encounter.mov ?? 8) / 2)),
       initiative: encounter.dex ? Math.round(encounter.dex / 20) : 2,
-      stats: { dex: encounter.dex, skills: Object.keys(skills).length > 0 ? skills : undefined },
+      stats: {
+        dex: encounter.dex,
+        skills: Object.keys(skills).length > 0 ? skills : undefined,
+        resistances: encounter.resistances?.map((t) => t.toLowerCase()),
+        immunities: encounter.immunities?.map((t) => t.toLowerCase()),
+        vulnerabilities: encounter.vulnerabilities?.map((t) => t.toLowerCase()),
+      },
       actions,
     });
   });

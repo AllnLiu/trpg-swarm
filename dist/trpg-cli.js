@@ -282,7 +282,7 @@ function resolveDnD5eAttack(opts) {
     const baseFormula = action.damageFormula ?? "1d8+3";
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = Math.max(1, damageRoll.total);
+    totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
     defender.hp = Math.max(0, defender.hp - totalDamage);
     if (defender.hp === 0) {
       if (defender.faction === "enemy") {
@@ -343,6 +343,7 @@ function resolveDnD5eSavingThrow(caster, target, action, halfOnSave = true, rng 
     } else {
       damageTaken = damageRoll.total;
     }
+    damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
     target.hp = Math.max(0, target.hp - damageTaken);
     if (target.hp === 0 && target.faction === "enemy") {
       target.isAlive = false;
@@ -565,6 +566,16 @@ function applyCoC7eDamage(target, damage) {
   if (target.conditions.includes("major_wound") && !target.conditions.includes("dying")) {
     target.conditions.push("dying");
   }
+}
+function adjustDamageForType(damage, damageType, target) {
+  if (!damageType) return damage;
+  const type = damageType.toLowerCase();
+  if (target.stats.immunities?.includes(type)) return 0;
+  const resisted = target.stats.resistances?.includes(type) ?? false;
+  const vulnerable = target.stats.vulnerabilities?.includes(type) ?? false;
+  if (resisted && !vulnerable) return Math.floor(damage / 2);
+  if (vulnerable && !resisted) return damage * 2;
+  return damage;
 }
 function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng()) {
   const atkSkill = attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
@@ -1974,7 +1985,8 @@ function dndAttackToAction(attack) {
     type: tiles > 1 ? "ranged" : "melee",
     range: tiles,
     attackBonus: attack.bonus,
-    damageFormula: attack.damage
+    damageFormula: attack.damage,
+    damageType: attack.damageType?.toLowerCase()
   };
 }
 function cocAttackToAction(attack) {
@@ -2157,7 +2169,13 @@ function campaignBookToWorldState(book, seed = 42) {
       ac: encounter.ac ?? encounter.armor ?? 12,
       speed: encounter.speed ? Math.max(2, Math.round(encounter.speed / 5)) : Math.max(2, Math.round((encounter.mov ?? 8) / 2)),
       initiative: encounter.dex ? Math.round(encounter.dex / 20) : 2,
-      stats: { dex: encounter.dex, skills: Object.keys(skills).length > 0 ? skills : void 0 },
+      stats: {
+        dex: encounter.dex,
+        skills: Object.keys(skills).length > 0 ? skills : void 0,
+        resistances: encounter.resistances?.map((t) => t.toLowerCase()),
+        immunities: encounter.immunities?.map((t) => t.toLowerCase()),
+        vulnerabilities: encounter.vulnerabilities?.map((t) => t.toLowerCase())
+      },
       actions
     });
   });

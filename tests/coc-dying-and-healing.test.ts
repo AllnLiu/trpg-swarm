@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
-import { applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
+import { adjustDamageForType, applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
 import { stepCombatTurn } from '../src/engine/stateStore.ts';
 
 const load = (name: string) =>
@@ -52,5 +52,17 @@ const healer = dnd.combatants['trpg-companion-healer'];
 const ids = healer.actions.filter((a) => a.type === 'heal').map((a) => a.id);
 assert.ok(ids.includes('cure_wounds') && ids.includes('healing_word'), `heal ids: ${ids}`);
 assert.equal(healer.stats.spellSlots?.[1]?.max, 4);
+
+// 3. Damage-type modifiers read from the campaign book (skeleton: vulnerable to bludgeoning, immune to poison).
+const skeleton = Object.values(dnd.combatants).find((c) => c.id.startsWith('enemy-skeleton'));
+assert.ok(skeleton, 'skeleton present');
+assert.deepEqual(skeleton.stats.vulnerabilities, ['bludgeoning']);
+assert.deepEqual(skeleton.stats.immunities, ['poison']);
+assert.equal(adjustDamageForType(6, 'bludgeoning', skeleton), 12);
+assert.equal(adjustDamageForType(6, 'poison', skeleton), 0);
+assert.equal(adjustDamageForType(6, 'slashing', skeleton), 6);
+assert.equal(adjustDamageForType(7, undefined, skeleton), 7);
+const wightLike = { ...skeleton, stats: { ...skeleton.stats, resistances: ['necrotic'], vulnerabilities: [] } };
+assert.equal(adjustDamageForType(7, 'necrotic', wightLike), 3);
 
 console.log('coc-dying-and-healing: all assertions passed');
