@@ -8,8 +8,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
-import { adjustDamageForType, applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
-import { stepCombatTurn } from '../src/engine/stateStore.ts';
+import { absorbTempHp, adjustDamageForType, applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
+import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
 const load = (name: string) =>
   JSON.parse(readFileSync(new URL(`../examples/campaign-${name}.json`, import.meta.url), 'utf8'));
@@ -116,5 +116,34 @@ assert.throws(
 // 8. Hazard cells: the books give a trap's cell as `location`.
 const gallery = campaignBookToWorldState(load('crimson-crypt'));
 assert.equal(gallery.map.cells[4][5], 'hazard', 'scythe plate cell (5,4) is painted');
+
+// 9. adjust: clamp, revive from 0, validation, and temp HP soaking damage first.
+const adj = campaignBookToWorldState(load('crimson-crypt'));
+const mate = adj.combatants['trpg-companion-rogue'];
+adjustCombatant(adj, mate.id, { hp: '+999' });
+assert.equal(mate.hp, mate.maxHp);
+mate.hp = 0;
+mate.conditions.push('unconscious', 'dying');
+adjustCombatant(adj, mate.id, { hp: '+3' });
+assert.equal(mate.hp, 3);
+assert.ok(!mate.conditions.includes('unconscious') && !mate.conditions.includes('dying'));
+assert.throws(() => adjustCombatant(adj, mate.id, { addConditions: ['flying'] }), /Valid conditions/);
+assert.throws(() => adjustCombatant(adj, mate.id, { hp: 'lots' }), /Invalid hp value/);
+adj.combatants['enemy-skeleton-guard-2'].isAlive = false;
+assert.throws(() => adjustCombatant(adj, 'enemy-skeleton-guard-2', { hp: '+1' }), /dead/);
+const tmp = { tempHp: 5 } as unknown as Parameters<typeof absorbTempHp>[0];
+assert.equal(absorbTempHp(tmp, 8), 3);
+assert.equal(tmp.tempHp, 0);
+tmp.tempHp = 5;
+assert.equal(absorbTempHp(tmp, 3), 0);
+assert.equal(tmp.tempHp, 2);
+const soak = campaignBookToWorldState(load('crimson-crypt'));
+const dummy = soak.combatants['enemy-skeleton-guard-1'];
+dummy.tempHp = 100;
+for (let i = 0; i < 12 && dummy.tempHp === 100; i++) {
+  stepCombatTurn(soak, 'player-hero', 0.65, 'heavy_crossbow', dummy.id);
+}
+assert.ok(dummy.tempHp < 100, 'a hit landed');
+assert.equal(dummy.hp, dummy.maxHp, 'temp HP soaked the damage');
 
 console.log('coc-dying-and-healing: all assertions passed');

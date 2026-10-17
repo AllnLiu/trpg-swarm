@@ -283,7 +283,7 @@ function resolveDnD5eAttack(opts) {
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
     totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
-    defender.hp = Math.max(0, defender.hp - totalDamage);
+    defender.hp = Math.max(0, defender.hp - absorbTempHp(defender, totalDamage));
     if (defender.hp === 0) {
       if (defender.faction === "enemy") {
         defender.isAlive = false;
@@ -344,7 +344,7 @@ function resolveDnD5eSavingThrow(caster, target, action, halfOnSave = true, rng 
       damageTaken = damageRoll.total;
     }
     damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
-    target.hp = Math.max(0, target.hp - damageTaken);
+    target.hp = Math.max(0, target.hp - absorbTempHp(target, damageTaken));
     if (target.hp === 0 && target.faction === "enemy") {
       target.isAlive = false;
     }
@@ -566,6 +566,11 @@ function applyCoC7eDamage(target, damage) {
   if (target.conditions.includes("major_wound") && !target.conditions.includes("dying")) {
     target.conditions.push("dying");
   }
+}
+function absorbTempHp(target, damage) {
+  const soaked = Math.min(target.tempHp ?? 0, damage);
+  if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
+  return damage - soaked;
 }
 function adjustDamageForType(damage, damageType, target) {
   if (!damageType) return damage;
@@ -1106,6 +1111,26 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
 // src/engine/stateStore.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
+
+// src/engine/types.ts
+var CONDITION_TYPES = [
+  "prone",
+  "restrained",
+  "blessed",
+  "frightened",
+  "poisoned",
+  "stunned",
+  "unconscious",
+  "dodging",
+  "concentrating",
+  "major_wound",
+  "dying",
+  "madness_phobia",
+  "madness_mania",
+  "madness_hallucination"
+];
+
+// src/engine/stateStore.ts
 var WORKING_MEMORY_WINDOW = 12;
 function recordEpisodicEvent(state, event) {
   const fullEvent = {
@@ -1902,6 +1927,64 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     eventRecorded
   };
 }
+function applyDelta(current, spec, min, max, label) {
+  const m = /^([+\-=]?)(\d+)$/.exec(spec.trim());
+  if (!m) throw new Error(`Invalid ${label} value "${spec}". Use +N, -N, =N or N.`);
+  const n = Number(m[2]);
+  const next = m[1] === "+" ? current + n : m[1] === "-" ? current - n : n;
+  return Math.min(max, Math.max(min, next));
+}
+function adjustCombatant(state, actorId, opts) {
+  const c = state.combatants[actorId];
+  if (!c) {
+    throw new Error(`Unknown combatant "${actorId}". Valid ids: ${Object.keys(state.combatants).join(", ")}`);
+  }
+  if (!c.isAlive) throw new Error(`${c.name} (${c.id}) is dead and cannot be adjusted.`);
+  const log = [];
+  const known = CONDITION_TYPES;
+  for (const cond of [...opts.addConditions ?? [], ...opts.removeConditions ?? []]) {
+    if (!known.includes(cond)) {
+      throw new Error(`Unknown condition "${cond}". Valid conditions: ${known.join(", ")}`);
+    }
+  }
+  if (opts.hp !== void 0) {
+    const prev = c.hp;
+    c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, "hp");
+    if (prev === 0 && c.hp > 0) {
+      c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
+      c.deathSaves = { successes: 0, failures: 0, isStable: true };
+    }
+    log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
+  }
+  if (opts.tempHp !== void 0) {
+    c.tempHp = Math.max(0, Math.floor(opts.tempHp));
+    log.push(`\u81E8\u6642 HP -> ${c.tempHp}`);
+  }
+  if (opts.san !== void 0) {
+    const prev = c.san;
+    c.san = applyDelta(c.san, opts.san, 0, c.maxSan, "san");
+    log.push(`SAN ${prev} -> ${c.san}/${c.maxSan}`);
+  }
+  if (opts.luck !== void 0) {
+    c.stats.luck = Math.max(0, Math.floor(opts.luck));
+    log.push(`\u5E78\u904B -> ${c.stats.luck}`);
+  }
+  for (const cond of opts.addConditions ?? []) {
+    if (!c.conditions.includes(cond)) c.conditions.push(cond);
+    log.push(`+\u72C0\u614B ${cond}`);
+  }
+  for (const cond of opts.removeConditions ?? []) {
+    c.conditions = c.conditions.filter((x) => x !== cond);
+    log.push(`-\u72C0\u614B ${cond}`);
+  }
+  recordEpisodicEvent(state, {
+    actorId: c.id,
+    actorName: c.name,
+    actionType: "adjust",
+    narrativeSummary: `\u3010\u624B\u52D5\u8ABF\u6574\u3011${c.name}\uFF1A${log.join("\uFF1B")}`
+  });
+  return log;
+}
 function fireVillainActions(state, actorId) {
   for (const va of state.villainActions ?? []) {
     if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
@@ -2584,6 +2667,32 @@ ${top3Text}`
       );
       break;
     }
+    case "adjust": {
+      const statePath = flags.state ?? DEFAULT_STATE_PATH;
+      const state = loadWorldState(statePath);
+      const actorId = resolveActorId(state, flags.actor);
+      if (!actorId) {
+        throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(", ")}`);
+      }
+      const list = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
+      const num = (v, label) => {
+        if (v === void 0) return void 0;
+        const n = Number(v);
+        if (typeof v !== "string" || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+        return n;
+      };
+      const log = adjustCombatant(state, actorId, {
+        hp: flags.hp,
+        tempHp: num(flags["temp-hp"], "temp-hp"),
+        san: flags.san,
+        luck: num(flags.luck, "luck"),
+        addConditions: list(flags["add-condition"]),
+        removeConditions: list(flags["remove-condition"])
+      });
+      saveWorldState(statePath, state);
+      printOutput({ status: "adjusted", actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}\uFF1A${log.join("\uFF1B") || "\u7121\u8B8A\u66F4"}`);
+      break;
+    }
     case "fact-set": {
       const statePath = flags.state ?? DEFAULT_STATE_PATH;
       const subject = flags.subject ?? "Unknown_Entity";
@@ -2621,7 +2730,7 @@ ${top3Text}`
         name: c.name,
         faction: c.faction,
         role: c.role,
-        hp: `${c.hp}/${c.maxHp}`,
+        hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} \u81E8\u6642)` : ""}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
         pos: `(${c.position.x},${c.position.y})`,
@@ -2674,6 +2783,7 @@ Commands:
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

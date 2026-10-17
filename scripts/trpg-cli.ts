@@ -19,6 +19,7 @@ import {
 } from '../src/engine/rulesEngine.ts';
 import { evaluateTacticalActions } from '../src/engine/tacticalAI.ts';
 import {
+  adjustCombatant,
   createDefaultEncounter,
   loadWorldState,
   queryActiveFacts,
@@ -349,6 +350,34 @@ function main(): void {
       break;
     }
 
+    case 'adjust': {
+      const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
+      const state = loadWorldState(statePath);
+      const actorId = resolveActorId(state, flags.actor as string | undefined);
+      if (!actorId) {
+        throw new Error(`adjust needs --actor. Valid ids: ${Object.keys(state.combatants).join(', ')}`);
+      }
+      const list = (v: string | boolean | undefined) =>
+        typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+      const num = (v: string | boolean | undefined, label: string) => {
+        if (v === undefined) return undefined;
+        const n = Number(v);
+        if (typeof v !== 'string' || !Number.isFinite(n)) throw new Error(`--${label} needs a number.`);
+        return n;
+      };
+      const log = adjustCombatant(state, actorId, {
+        hp: flags.hp as string | undefined,
+        tempHp: num(flags['temp-hp'], 'temp-hp'),
+        san: flags.san as string | undefined,
+        luck: num(flags.luck, 'luck'),
+        addConditions: list(flags['add-condition']),
+        removeConditions: list(flags['remove-condition']),
+      });
+      saveWorldState(statePath, state);
+      printOutput({ status: 'adjusted', actorId, changes: log }, asJson, `[TRPG-CLI] ${actorId}：${log.join('；') || '無變更'}`);
+      break;
+    }
+
     case 'fact-set': {
       const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
       const subject = (flags.subject as string) ?? 'Unknown_Entity';
@@ -394,7 +423,7 @@ function main(): void {
         name: c.name,
         faction: c.faction,
         role: c.role,
-        hp: `${c.hp}/${c.maxHp}`,
+        hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} 臨時)` : ''}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
         pos: `(${c.position.x},${c.position.y})`,
@@ -452,6 +481,7 @@ Commands:
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

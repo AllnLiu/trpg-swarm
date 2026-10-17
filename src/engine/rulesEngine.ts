@@ -137,7 +137,7 @@ export function resolveDnD5eAttack(opts: DnD5eAttackOptions): DnD5eAttackResolut
     damageRoll = rollDice(finalFormula, rng);
     totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
 
-    defender.hp = Math.max(0, defender.hp - totalDamage);
+    defender.hp = Math.max(0, defender.hp - absorbTempHp(defender, totalDamage));
     if (defender.hp === 0) {
       if (defender.faction === 'enemy') {
         defender.isAlive = false;
@@ -228,7 +228,7 @@ export function resolveDnD5eSavingThrow(
       damageTaken = damageRoll.total;
     }
     damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
-    target.hp = Math.max(0, target.hp - damageTaken);
+    target.hp = Math.max(0, target.hp - absorbTempHp(target, damageTaken));
     if (target.hp === 0 && target.faction === 'enemy') {
       target.isAlive = false;
     }
@@ -599,6 +599,13 @@ export function applyCoC7eDamage(target: Combatant, damage: number): void {
   if (target.conditions.includes('major_wound') && !target.conditions.includes('dying')) {
     target.conditions.push('dying');
   }
+}
+
+/** Temporary HP soak damage first; returns the damage that is left for hp. */
+export function absorbTempHp(target: Combatant, damage: number): number {
+  const soaked = Math.min(target.tempHp ?? 0, damage);
+  if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
+  return damage - soaked;
 }
 
 /** D&D 5e damage-type modifiers: immunity -> 0, resistance -> half, vulnerability -> double (both cancel). */

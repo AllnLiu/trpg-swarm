@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type {
   Combatant,
+  ConditionType,
   EpisodicEvent,
   FactCategory,
   MapGrid,
@@ -10,6 +11,7 @@ import type {
   TerrainType,
   WorldState,
 } from './types.ts';
+import { CONDITION_TYPES } from './types.ts';
 import { DeterministicRNG, rollDice } from './dice.ts';
 import {
   COC_LEVEL_RANK,
@@ -928,6 +930,79 @@ export function stepCombatTurn(
     resolutionNarrative,
     eventRecorded,
   };
+}
+
+export interface AdjustOptions {
+  hp?: string; // "+N", "-N", "=N" or "N" (set)
+  tempHp?: number;
+  san?: string;
+  luck?: number;
+  addConditions?: string[];
+  removeConditions?: string[];
+}
+
+function applyDelta(current: number, spec: string, min: number, max: number, label: string): number {
+  const m = /^([+\-=]?)(\d+)$/.exec(spec.trim());
+  if (!m) throw new Error(`Invalid ${label} value "${spec}". Use +N, -N, =N or N.`);
+  const n = Number(m[2]);
+  const next = m[1] === '+' ? current + n : m[1] === '-' ? current - n : n;
+  return Math.min(max, Math.max(min, next));
+}
+
+/**
+ * Out-of-combat state changes the host rolled for itself (rests, potions, temp HP, sanity,
+ * luck, conditions). HP is clamped to [0, maxHp]; raising HP from 0 clears unconscious and dying.
+ */
+export function adjustCombatant(state: WorldState, actorId: string, opts: AdjustOptions): string[] {
+  const c = state.combatants[actorId];
+  if (!c) {
+    throw new Error(`Unknown combatant "${actorId}". Valid ids: ${Object.keys(state.combatants).join(', ')}`);
+  }
+  if (!c.isAlive) throw new Error(`${c.name} (${c.id}) is dead and cannot be adjusted.`);
+  const log: string[] = [];
+  const known = CONDITION_TYPES as readonly string[];
+  for (const cond of [...(opts.addConditions ?? []), ...(opts.removeConditions ?? [])]) {
+    if (!known.includes(cond)) {
+      throw new Error(`Unknown condition "${cond}". Valid conditions: ${known.join(', ')}`);
+    }
+  }
+  if (opts.hp !== undefined) {
+    const prev = c.hp;
+    c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, 'hp');
+    if (prev === 0 && c.hp > 0) {
+      c.conditions = c.conditions.filter((x) => x !== 'unconscious' && x !== 'dying');
+      c.deathSaves = { successes: 0, failures: 0, isStable: true };
+    }
+    log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
+  }
+  if (opts.tempHp !== undefined) {
+    c.tempHp = Math.max(0, Math.floor(opts.tempHp));
+    log.push(`臨時 HP -> ${c.tempHp}`);
+  }
+  if (opts.san !== undefined) {
+    const prev = c.san;
+    c.san = applyDelta(c.san, opts.san, 0, c.maxSan, 'san');
+    log.push(`SAN ${prev} -> ${c.san}/${c.maxSan}`);
+  }
+  if (opts.luck !== undefined) {
+    c.stats.luck = Math.max(0, Math.floor(opts.luck));
+    log.push(`幸運 -> ${c.stats.luck}`);
+  }
+  for (const cond of opts.addConditions ?? []) {
+    if (!c.conditions.includes(cond as ConditionType)) c.conditions.push(cond as ConditionType);
+    log.push(`+狀態 ${cond}`);
+  }
+  for (const cond of opts.removeConditions ?? []) {
+    c.conditions = c.conditions.filter((x) => x !== cond);
+    log.push(`-狀態 ${cond}`);
+  }
+  recordEpisodicEvent(state, {
+    actorId: c.id,
+    actorName: c.name,
+    actionType: 'adjust',
+    narrativeSummary: `【手動調整】${c.name}：${log.join('；')}`,
+  });
+  return log;
 }
 
 /** Fire due villain actions on their owner's turn; summons join the initiative order. */

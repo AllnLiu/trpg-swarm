@@ -25,21 +25,23 @@ export type ActionType =
   | 'dodge'
   | 'dash';
 
-export type ConditionType =
-  | 'prone'
-  | 'restrained'
-  | 'blessed'
-  | 'frightened'
-  | 'poisoned'
-  | 'stunned'
-  | 'unconscious'
-  | 'dodging'
-  | 'concentrating'
-  | 'major_wound'
-  | 'dying'
-  | 'madness_phobia'
-  | 'madness_mania'
-  | 'madness_hallucination';
+export const CONDITION_TYPES = [
+  'prone',
+  'restrained',
+  'blessed',
+  'frightened',
+  'poisoned',
+  'stunned',
+  'unconscious',
+  'dodging',
+  'concentrating',
+  'major_wound',
+  'dying',
+  'madness_phobia',
+  'madness_mania',
+  'madness_hallucination',
+] as const;
+export type ConditionType = (typeof CONDITION_TYPES)[number];
 
 export interface CharacterStats {
   // D&D 5e core stats (1-30) & modifiers
@@ -127,6 +129,7 @@ export interface Combatant {
   speed: number; // In grid tiles (e.g. 6 tiles = 30ft)
   initiative: number;
   conditions: ConditionType[];
+  tempHp?: number; // D&D temporary HP: drained before hp by attack and save damage
   deathSaves?: {
     successes: number;
     failures: number;
