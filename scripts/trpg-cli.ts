@@ -51,6 +51,12 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   'randolph-carter': 'coc7e/randolph-carter.json',
   carter: 'coc7e/randolph-carter.json',
   'cypress-crypt': 'coc7e/randolph-carter.json',
+  'morgansfort': 'dnd5e/morgansfort.json',
+  fort: 'dnd5e/morgansfort.json',
+  'island-fortress': 'dnd5e/morgansfort.json',
+  'colour-out-of-space': 'coc7e/colour-out-of-space.json',
+  colour: 'coc7e/colour-out-of-space.json',
+  'blasted-heath': 'coc7e/colour-out-of-space.json',
 };
 
 interface ParsedArgs {

@@ -80,5 +80,37 @@
     "synopsis": "半夜時分，倫道夫·卡特與研究神秘古籍的學者哈利·華倫深入大柏樹沼澤的一處古老廢棄墓園。他們撬開了一塊沉重的花崗岩墓石板，華倫帶著便攜式電話線獨自步入漆黑石階深處。然而電話筒那端隨即傳來了恐懼的尖叫與不可名狀之物的低語……",
     "author": "H. P. Lovecraft (1919)",
     "sourceUrl": "https://en.wikisource.org/wiki/The_Statement_of_Randolph_Carter"
+  },
+  {
+    "id": "campaign-morgansfort",
+    "title": "摩根堡：老島要塞 (Morgansfort: The Old Island Fortress)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/morgansfort.json",
+    "alias": [
+      "morgansfort",
+      "fort",
+      "island-fortress"
+    ],
+    "partySize": 2,
+    "author": "Chris Gonnerman (The Basic Fantasy Project)",
+    "sourceUrl": "https://www.basicfantasy.org/",
+    "license": "CC-BY-SA-4.0",
+    "synopsis": "摩根要塞對岸的湖心荒島上，矗立著一座半沉入沼澤的古代前哨石堡。近日逃竄的強盜斥候佔領了要塞殘破的門廳，而地下磚造水庫深處則盤踞著噴吐熾熱酸液的巨型火甲蟲與古代守軍的亡靈指揮官。"
+  },
+  {
+    "id": "campaign-colour-out-of-space",
+    "title": "星之彩：枯萎荒原 (The Colour Out of Space)",
+    "system": "coc7e",
+    "relativePath": "coc7e/colour-out-of-space.json",
+    "alias": [
+      "colour-out-of-space",
+      "colour",
+      "blasted-heath"
+    ],
+    "partySize": 2,
+    "author": "H. P. Lovecraft (1927)",
+    "sourceUrl": "https://en.wikisource.org/wiki/The_Colour_Out_of_Space",
+    "license": "Public Domain (1927)",
+    "synopsis": "阿卡姆西側的山丘深處，有一片寸草不生、覆蓋著細灰的『枯萎荒原』。一年前一顆奇異隕石墜落於加德納農莊的深井旁，隨後農場的作物與牲畜開始散發無法名狀的詭異色澤並逐漸枯萎崩解。調查員受波士頓測繪局委託前來勘查，必須在心智被那不可名狀的星之彩吸乾前查清老井的真相。"
   }
 ]
