@@ -65,4 +65,18 @@ assert.equal(adjustDamageForType(7, undefined, skeleton), 7);
 const wightLike = { ...skeleton, stats: { ...skeleton.stats, resistances: ['necrotic'], vulnerabilities: [] } };
 assert.equal(adjustDamageForType(7, 'necrotic', wightLike), 3);
 
+// 4. Villain actions: summoned skeletons wait in reserve and join on the boss's turn.
+const finale = load('crimson-crypt');
+finale.sessionState.sceneId = 'area-3-abyssal-sanctum';
+const boss = campaignBookToWorldState(finale);
+assert.equal(boss.villainActions?.length, 2);
+assert.deepEqual(Object.keys(boss.reserve ?? {}).sort(), ['enemy-honor-guard-skeleton-1', 'enemy-honor-guard-skeleton-2']);
+assert.ok(!('enemy-honor-guard-skeleton-1' in boss.combatants));
+assert.ok(!boss.initiativeOrder.includes('enemy-honor-guard-skeleton-1'));
+stepCombatTurn(boss, 'boss-sir-malcolm-wight');
+assert.ok('enemy-honor-guard-skeleton-1' in boss.combatants && 'enemy-honor-guard-skeleton-2' in boss.combatants);
+assert.ok(boss.initiativeOrder.includes('enemy-honor-guard-skeleton-2'));
+assert.equal(Object.keys(boss.reserve ?? {}).length, 0);
+assert.equal(boss.villainActions?.filter((v) => v.fired).length, 1, 'round-2 action not fired yet');
+
 console.log('coc-dying-and-healing: all assertions passed');

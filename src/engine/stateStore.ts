@@ -729,6 +729,8 @@ export function stepCombatTurn(
 
   const actor = state.combatants[actorId];
 
+  fireVillainActions(state, actor.id);
+
   // If actor is at 0 HP and unconscious in D&D 5e, perform Death Save first
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === 'dnd5e') {
     const ds = resolveDnD5eDeathSave(actor, rng);
@@ -914,6 +916,30 @@ export function stepCombatTurn(
     resolutionNarrative,
     eventRecorded,
   };
+}
+
+/** Fire due villain actions on their owner's turn; summons join the initiative order. */
+function fireVillainActions(state: WorldState, actorId: string): void {
+  for (const va of state.villainActions ?? []) {
+    if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
+    va.fired = true;
+    const arrivals: string[] = [];
+    for (const id of va.summons ?? []) {
+      const unit = state.reserve?.[id];
+      if (!unit) continue;
+      state.combatants[id] = unit;
+      delete state.reserve![id];
+      state.initiativeOrder.push(id);
+      arrivals.push(unit.name);
+    }
+    const owner = state.combatants[actorId];
+    recordEpisodicEvent(state, {
+      actorId,
+      actorName: owner?.name ?? actorId,
+      actionType: 'villain_action',
+      narrativeSummary: `【Boss 專屬行動：${va.name}】${va.effect}${arrivals.length ? ` 登場：${arrivals.join('、')}。` : ''}`,
+    });
+  }
 }
 
 function advanceTurnCounters(state: WorldState): void {

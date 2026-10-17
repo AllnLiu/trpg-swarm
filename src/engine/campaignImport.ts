@@ -17,6 +17,7 @@ import type {
   PersonaWeights,
   RuleSystem,
   TerrainType,
+  VillainAction,
   WorldState,
 } from './types.ts';
 import { createDefaultTacticalMap, recordEpisodicEvent, upsertSemanticFact } from './stateStore.ts';
@@ -88,6 +89,7 @@ interface BookEncounter {
   resistances?: string[];
   immunities?: string[];
   vulnerabilities?: string[];
+  villainActions?: Array<{ round?: number; name?: string; effect?: string }>;
   position?: { x: number; y: number };
 }
 
@@ -437,6 +439,32 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
     });
   });
 
+  // Villain actions: a "summon" action holds back the combatants standing on the coordinates it
+  // names, so they enter the fight on the owner's turn instead of at the start.
+  const villainActions: VillainAction[] = [];
+  const reserve: Record<string, Combatant> = {};
+  for (const encounter of area?.encounters ?? []) {
+    const ownerId = encounter.entityId ?? slugify(encounter.name);
+    for (const va of encounter.villainActions ?? []) {
+      const effect = va.effect ?? '';
+      const summons: string[] = [];
+      if (/召喚|summon/i.test(effect)) {
+        for (const m of effect.matchAll(/x:\s*(\d+)\s*,\s*y:\s*(\d+)/gi)) {
+          const [x, y] = [Number(m[1]), Number(m[2])];
+          const unit = Object.values(combatants).find(
+            (c) => c.faction === 'enemy' && c.id !== ownerId && c.position.x === x && c.position.y === y
+          );
+          if (unit && !summons.includes(unit.id)) summons.push(unit.id);
+        }
+      }
+      for (const id of summons) {
+        reserve[id] = combatants[id];
+        delete combatants[id];
+      }
+      villainActions.push({ ownerId, round: va.round ?? 1, name: va.name ?? 'Villain action', effect, summons });
+    }
+  }
+
   const initiativeOrder = Object.values(combatants)
     .sort((a, b) => b.initiative - a.initiative || (a.faction === 'party' ? -1 : 1))
     .map((c) => c.id);
@@ -460,6 +488,8 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
     workingMemory: [],
     episodicLog: [],
     semanticFacts: [],
+    villainActions: villainActions.length > 0 ? villainActions : undefined,
+    reserve: Object.keys(reserve).length > 0 ? reserve : undefined,
   };
 
   for (const [flag, value] of Object.entries(book.sessionState?.questFlags ?? {})) {

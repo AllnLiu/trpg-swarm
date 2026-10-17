@@ -1712,6 +1712,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     throw new Error("No living combatants available to take a turn.");
   }
   const actor = state.combatants[actorId];
+  fireVillainActions(state, actor.id);
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "dnd5e") {
     const ds = resolveDnD5eDeathSave(actor, rng);
     const decisionReport2 = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
@@ -1883,6 +1884,28 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     resolutionNarrative,
     eventRecorded
   };
+}
+function fireVillainActions(state, actorId) {
+  for (const va of state.villainActions ?? []) {
+    if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
+    va.fired = true;
+    const arrivals = [];
+    for (const id of va.summons ?? []) {
+      const unit = state.reserve?.[id];
+      if (!unit) continue;
+      state.combatants[id] = unit;
+      delete state.reserve[id];
+      state.initiativeOrder.push(id);
+      arrivals.push(unit.name);
+    }
+    const owner = state.combatants[actorId];
+    recordEpisodicEvent(state, {
+      actorId,
+      actorName: owner?.name ?? actorId,
+      actionType: "villain_action",
+      narrativeSummary: `\u3010Boss \u5C08\u5C6C\u884C\u52D5\uFF1A${va.name}\u3011${va.effect}${arrivals.length ? ` \u767B\u5834\uFF1A${arrivals.join("\u3001")}\u3002` : ""}`
+    });
+  }
 }
 function advanceTurnCounters(state) {
   state.turn += 1;
@@ -2179,6 +2202,29 @@ function campaignBookToWorldState(book, seed = 42) {
       actions
     });
   });
+  const villainActions = [];
+  const reserve = {};
+  for (const encounter of area?.encounters ?? []) {
+    const ownerId = encounter.entityId ?? slugify(encounter.name);
+    for (const va of encounter.villainActions ?? []) {
+      const effect = va.effect ?? "";
+      const summons = [];
+      if (/召喚|summon/i.test(effect)) {
+        for (const m of effect.matchAll(/x:\s*(\d+)\s*,\s*y:\s*(\d+)/gi)) {
+          const [x, y] = [Number(m[1]), Number(m[2])];
+          const unit = Object.values(combatants).find(
+            (c) => c.faction === "enemy" && c.id !== ownerId && c.position.x === x && c.position.y === y
+          );
+          if (unit && !summons.includes(unit.id)) summons.push(unit.id);
+        }
+      }
+      for (const id of summons) {
+        reserve[id] = combatants[id];
+        delete combatants[id];
+      }
+      villainActions.push({ ownerId, round: va.round ?? 1, name: va.name ?? "Villain action", effect, summons });
+    }
+  }
   const initiativeOrder = Object.values(combatants).sort((a, b) => b.initiative - a.initiative || (a.faction === "party" ? -1 : 1)).map((c) => c.id);
   const state = {
     campaignName: book.title,
@@ -2198,7 +2244,9 @@ function campaignBookToWorldState(book, seed = 42) {
     combatants,
     workingMemory: [],
     episodicLog: [],
-    semanticFacts: []
+    semanticFacts: [],
+    villainActions: villainActions.length > 0 ? villainActions : void 0,
+    reserve: Object.keys(reserve).length > 0 ? reserve : void 0
   };
   for (const [flag, value] of Object.entries(book.sessionState?.questFlags ?? {})) {
     upsertSemanticFact(state, flag, "questFlag", String(value), "quest");

@@ -218,6 +218,17 @@ export interface MapGrid {
   elevation: number[][];
 }
 
+/** Scripted boss action from the campaign book (`villainActions`). */
+export interface VillainAction {
+  ownerId: string;
+  round: number;
+  name: string;
+  effect: string;
+  /** Reserve combatants this action brings into the fight (parsed from "summon ... (x: N, y: M)"). */
+  summons?: string[];
+  fired?: boolean;
+}
+
 export interface WorldState {
   campaignName: string;
   ruleSystem: RuleSystem;
@@ -234,4 +245,6 @@ export interface WorldState {
   workingMemory: EpisodicEvent[]; // Sliding window of last 12 events
   episodicLog: EpisodicEvent[]; // Immutable append-only log
   semanticFacts: MemoryFact[]; // Knowledge base with Temporal Supersession
+  villainActions?: VillainAction[]; // Scripted boss actions, fired on the owner's turn
+  reserve?: Record<string, Combatant>; // Combatants held back until a villain action summons them
 }
