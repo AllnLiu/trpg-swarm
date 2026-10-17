@@ -44,19 +44,25 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   phandelver: 'dnd5e/lost-mine.json',
   'sunless-citadel': 'dnd5e/sunless-citadel.json',
   sunless: 'dnd5e/sunless-citadel.json',
+  citadel: 'dnd5e/sunless-citadel.json',
   'arkham-shadow': 'coc7e/arkham-shadow.json',
   arkham: 'coc7e/arkham-shadow.json',
   coc7e: 'coc7e/arkham-shadow.json',
   'edge-of-darkness': 'coc7e/edge-of-darkness.json',
   edge: 'coc7e/edge-of-darkness.json',
+  darkness: 'coc7e/edge-of-darkness.json',
   'dead-light': 'coc7e/dead-light.json',
   deadlight: 'coc7e/dead-light.json',
+  'haunting-corbitt': 'coc7e/haunting-corbitt.json',
+  haunting: 'coc7e/haunting-corbitt.json',
+  corbitt: 'coc7e/haunting-corbitt.json',
   'indigo-galleon': 'pbta/indigo-galleon.json',
   indigo: 'pbta/indigo-galleon.json',
   galleon: 'pbta/indigo-galleon.json',
   pbta: 'pbta/indigo-galleon.json',
   'cinder-queen': 'pbta/cinder-queen.json',
   cinder: 'pbta/cinder-queen.json',
+  queen: 'pbta/cinder-queen.json',
 };
 
 interface ParsedArgs {
@@ -105,34 +111,44 @@ function printOutput(data: unknown, asJson: boolean, humanText?: string): void {
 
 function resolveExampleFile(requested: string): string {
   const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  // 1. Direct path check
-  const candidateDirect = path.resolve(process.cwd(), requested);
+  const cleanRequested = requested.trim();
+  const withJson = cleanRequested.endsWith('.json') ? cleanRequested : `${cleanRequested}.json`;
+
+  // 1. Direct path check (as given or with .json)
+  const candidateDirect = path.resolve(process.cwd(), cleanRequested);
   if (fs.existsSync(candidateDirect) && fs.statSync(candidateDirect).isFile()) {
     return candidateDirect;
   }
-  const candidateDirectJson = path.resolve(process.cwd(), requested.endsWith('.json') ? requested : requested + '.json');
+  const candidateDirectJson = path.resolve(process.cwd(), withJson);
   if (fs.existsSync(candidateDirectJson) && fs.statSync(candidateDirectJson).isFile()) {
     return candidateDirectJson;
   }
 
   // 2. Check in campaigns/ directory
-  const candidateCampaign = path.resolve(rootDir, 'campaigns', requested.endsWith('.json') ? requested : requested + '.json');
+  const candidateCampaign = path.resolve(rootDir, 'campaigns', withJson);
   if (fs.existsSync(candidateCampaign) && fs.statSync(candidateCampaign).isFile()) {
     return candidateCampaign;
   }
 
   // 3. Normalized alias check
-  const normalized = requested.toLowerCase().replace(/\.json$/, '');
+  const normalized = cleanRequested.toLowerCase().replace(/\.json$/, '');
   const relativeFromAlias = EXAMPLE_ALIASES[normalized];
   if (relativeFromAlias) {
     const p = path.resolve(rootDir, 'examples', relativeFromAlias);
     if (fs.existsSync(p)) return p;
   }
 
-  // 4. Recursive search inside examples/
+  // 4. Search inside examples/ and its system subdirectories
   const examplesDir = path.resolve(rootDir, 'examples');
+  const candidateBaseNames = [
+    cleanRequested,
+    withJson,
+    `campaign-${withJson.replace(/^campaign-/, '')}`,
+    withJson.replace(/^campaign-/, ''),
+  ];
+
   for (const sub of ['', 'dnd5e', 'coc7e', 'pbta']) {
-    for (const name of [, , requested]) {
+    for (const name of candidateBaseNames) {
       const target = path.resolve(examplesDir, sub, name);
       if (fs.existsSync(target) && fs.statSync(target).isFile()) {
         return target;
@@ -140,7 +156,8 @@ function resolveExampleFile(requested: string): string {
     }
   }
 
-  throw new Error();
+  const availableAliases = Object.keys(EXAMPLE_ALIASES).sort().join(', ');
+  throw new Error(`Scenario "${requested}" not found. Available aliases: ${availableAliases}\nRun "node dist/trpg-cli.js init --list" to view all scenarios.`);
 }
 
 /**
@@ -544,7 +561,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow|potent-brew|edge-of-darkness|dead-light|indigo-galleon|lost-mine|sunless-citadel|cinder-queen> [--scene <id>] --state <path>   (load bundled example campaign, optionally at another scene)
+             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]

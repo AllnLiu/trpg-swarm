@@ -11,8 +11,20 @@ import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
 import { absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
-const load = (name: string) =>
-  JSON.parse(readFileSync(new URL(`../examples/campaign-${name}.json`, import.meta.url), 'utf8'));
+import { existsSync } from 'node:fs';
+
+const load = (name: string) => {
+  const candidates = [
+    new URL(`../examples/campaign-${name}.json`, import.meta.url),
+    new URL(`../examples/coc7e/${name}.json`, import.meta.url),
+    new URL(`../examples/dnd5e/${name}.json`, import.meta.url),
+    new URL(`../examples/pbta/${name}.json`, import.meta.url),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return JSON.parse(readFileSync(c, 'utf8'));
+  }
+  throw new Error(`Scenario ${name} not found`);
+};
 
 // 1a. Major wound at 0 HP -> unconscious + dying, still alive.
 const coc = campaignBookToWorldState(load('arkham-shadow'));

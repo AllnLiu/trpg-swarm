@@ -1,7 +1,7 @@
 {
   "suite": "trpg-swarm-engine Headless 100-Game E2E QA Suite",
-  "timestamp": "2026-10-17T14:25:55.780Z",
-  "elapsedMs": 18.9,
+  "timestamp": "2026-10-17T14:30:16.338Z",
+  "elapsedMs": 18.68,
   "externalModulesDetected": [
     "../src/engine/types.ts",
     "../src/engine/dice.ts",

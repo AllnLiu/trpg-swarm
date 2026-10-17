@@ -114,5 +114,18 @@
     ],
     "partySize": 2,
     "synopsis": "白角山（Hvitr's Horn）頂端的古老修道院早已坍塌為焦黑廢墟。三百年來封印著深淵烈焰半神「吉爾達瑟」的火山口封印正逐漸碎裂，村民接連失蹤。狂熱的灰燼教徒正在祭壇舉行喚醒儀式，冒險者必須攀登火山、在毀滅倒數結束前阻止烈焰破世！"
+  },
+  {
+    "id": "campaign-haunting-corbitt",
+    "title": "鬼屋 (The Haunting) — 柯比特宅怪異調查",
+    "system": "coc7e",
+    "relativePath": "coc7e/haunting-corbitt.json",
+    "alias": [
+      "haunting",
+      "corbitt",
+      "haunting-corbitt"
+    ],
+    "partySize": 4,
+    "synopsis": "波士頓一處歷經多起瘋狂與慘劇的老宅即將被房東重新出租，但先前的租客都在入住後陷入嚴重精神錯亂。調查員受託進入這座散發腐朽氣息的宅邸，查閱波士頓環球報舊報紙與地契歷史，並深入地下室直面深埋地底數十年的活死人巫師——沃爾特·柯比特！"
   }
 ]
