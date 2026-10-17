@@ -21,12 +21,12 @@ import { stepCombatTurn } from '../src/engine/stateStore.ts';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const catalogPath = path.resolve(rootDir, 'examples', 'catalog.json');
 
-console.log('--- [QA Test Suite: 10 Classic Campaign Scenarios] ---');
+console.log('--- [QA Test Suite: 9 Classic Campaign Scenarios] ---');
 
 // 1. Catalog Integrity
 assert.ok(existsSync(catalogPath), 'catalog.json must exist');
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
-assert.equal(catalog.length, 10, 'All 9 scenarios must be indexed in catalog.json');
+assert.equal(catalog.length, 9, 'All 9 scenarios must be indexed in catalog.json');
 
 const systemCounts: Record<string, number> = { dnd5e: 0, coc7e: 0, pbta: 0 };
 
@@ -73,7 +73,7 @@ for (const entry of catalog) {
 }
 
 assert.equal(systemCounts.dnd5e, 4, 'Must have 4 D&D 5e scenarios');
-assert.equal(systemCounts.coc7e, 4, 'Must have 3 CoC 7e scenarios');
+assert.equal(systemCounts.coc7e, 3, 'Must have 3 CoC 7e scenarios');
 assert.equal(systemCounts.pbta, 2, 'Must have 2 PbtA scenarios');
 
-console.log('✅ All 10 campaign scenarios passed schema, hydration, and active combat encounter simulation!');
+console.log('✅ All 9 campaign scenarios passed schema, hydration, and active combat encounter simulation!');
