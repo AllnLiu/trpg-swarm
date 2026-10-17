@@ -20,6 +20,7 @@ import type {
   VillainAction,
   WorldState,
 } from './types.ts';
+import { getAbilityModifier } from './rulesEngine.ts';
 import { createDefaultTacticalMap, recordEpisodicEvent, upsertSemanticFact } from './stateStore.ts';
 
 // ---------------------------------------------------------------------------
@@ -364,7 +365,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42, sceneOve
     const castingScore = member.spellcasting?.ability
       ? abilities[member.spellcasting.ability]?.score
       : undefined;
-    const castingMod = castingScore !== undefined ? Math.floor((castingScore - 10) / 2) : 0;
+    const castingMod = castingScore !== undefined ? getAbilityModifier(castingScore) : 0;
     const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
     const healSpells: Record<string, { id: string; name: string; range: number; dice: string }> = {
       'cure wounds': { id: 'cure_wounds', name: '療傷術 (Cure Wounds)', range: 1, dice: '1d8' },

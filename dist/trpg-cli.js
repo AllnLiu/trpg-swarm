@@ -1086,7 +1086,7 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
     );
     const override = [...pool].sort((a, b2) => b2.totalUtility - a.totalUtility)[0];
     if (!override) {
-      const unique = (ids) => ids.filter((id, i) => ids.indexOf(id) === i);
+      const unique = (ids) => [...new Set(ids)];
       const legalActionIds = unique(candidates.map((c) => c.action.id));
       const legalTargetIds = unique(
         candidates.filter((c) => !preferredActionId || c.action.id === preferredActionId).map((c) => c.targetId).filter((id) => Boolean(id))
@@ -1750,22 +1750,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
   fireVillainActions(state, actor.id);
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "dnd5e") {
     const ds = resolveDnD5eDeathSave(actor, rng);
-    const decisionReport2 = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: "death_save",
-      diceRoll: ds.roll,
-      narrativeSummary: ds.narrative
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport: decisionReport2,
-      resolutionNarrative: ds.narrative,
-      eventRecorded: evt
-    };
+    return finishDownedTurn(state, actor, ds.narrative, temperature, preferredActionId, ds.roll);
   }
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === "coc7e") {
     const dying = actor.conditions.includes("dying");
@@ -1780,21 +1765,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
         upsertSemanticFact(state, actor.id, "status", "dead", "npc");
       }
     }
-    const decisionReport2 = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: "death_save",
-      narrativeSummary: narrative
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport: decisionReport2,
-      resolutionNarrative: narrative,
-      eventRecorded: evt
-    };
+    return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
   }
   const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId, preferredTargetId);
   const chosen = decisionReport.selectedCandidate;
@@ -1981,6 +1952,24 @@ function adjustCombatant(state, actorId, opts) {
     narrativeSummary: `\u3010\u624B\u52D5\u8ABF\u6574\u3011${c.name}\uFF1A${log.join("\uFF1B")}`
   });
   return log;
+}
+function finishDownedTurn(state, actor, narrative, temperature, preferredActionId, diceRoll) {
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, void 0, preferredActionId);
+  const evt = recordEpisodicEvent(state, {
+    actorId: actor.id,
+    actorName: actor.name,
+    actionType: "death_save",
+    diceRoll,
+    narrativeSummary: narrative
+  });
+  advanceTurnCounters(state);
+  return {
+    actorId: actor.id,
+    actorName: actor.name,
+    decisionReport,
+    resolutionNarrative: narrative,
+    eventRecorded: evt
+  };
 }
 function fireVillainActions(state, actorId) {
   for (const va of state.villainActions ?? []) {
@@ -2227,7 +2216,7 @@ function campaignBookToWorldState(book, seed = 42, sceneOverride) {
       }
     }
     const castingScore = member.spellcasting?.ability ? abilities[member.spellcasting.ability]?.score : void 0;
-    const castingMod = castingScore !== void 0 ? Math.floor((castingScore - 10) / 2) : 0;
+    const castingMod = castingScore !== void 0 ? getAbilityModifier(castingScore) : 0;
     const modSuffix = castingMod >= 0 ? `+${castingMod}` : `${castingMod}`;
     const healSpells = {
       "cure wounds": { id: "cure_wounds", name: "\u7642\u50B7\u8853 (Cure Wounds)", range: 1, dice: "1d8" },

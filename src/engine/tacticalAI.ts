@@ -560,7 +560,7 @@ export function evaluateTacticalActions(
     );
     const override = [...pool].sort((a, b) => b.totalUtility - a.totalUtility)[0];
     if (!override) {
-      const unique = (ids: string[]) => ids.filter((id, i) => ids.indexOf(id) === i);
+      const unique = (ids: string[]) => [...new Set(ids)];
       const legalActionIds = unique(candidates.map((c) => c.action.id));
       const legalTargetIds = unique(
         candidates

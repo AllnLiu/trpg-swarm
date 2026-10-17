@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type {
   Combatant,
   ConditionType,
+  DiceRollResult,
   EpisodicEvent,
   FactCategory,
   MapGrid,
@@ -738,22 +739,7 @@ export function stepCombatTurn(
   // If actor is at 0 HP and unconscious in D&D 5e, perform Death Save first
   if (actor.hp === 0 && actor.isAlive && state.ruleSystem === 'dnd5e') {
     const ds = resolveDnD5eDeathSave(actor, rng);
-    const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: 'death_save',
-      diceRoll: ds.roll,
-      narrativeSummary: ds.narrative,
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport,
-      resolutionNarrative: ds.narrative,
-      eventRecorded: evt,
-    };
+    return finishDownedTurn(state, actor, ds.narrative, temperature, preferredActionId, ds.roll);
   }
 
   // CoC 7e: a downed investigator cannot act. A dying one rolls CON each turn and dies on a failure.
@@ -770,21 +756,7 @@ export function stepCombatTurn(
         upsertSemanticFact(state, actor.id, 'status', 'dead', 'npc');
       }
     }
-    const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
-    const evt = recordEpisodicEvent(state, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actionType: 'death_save',
-      narrativeSummary: narrative,
-    });
-    advanceTurnCounters(state);
-    return {
-      actorId: actor.id,
-      actorName: actor.name,
-      decisionReport,
-      resolutionNarrative: narrative,
-      eventRecorded: evt,
-    };
+    return finishDownedTurn(state, actor, narrative, temperature, preferredActionId);
   }
 
   // Run Softmax Situational Tactical AI
@@ -1000,6 +972,33 @@ export function adjustCombatant(state: WorldState, actorId: string, opts: Adjust
 }
 
 /** Fire due villain actions on their owner's turn; summons join the initiative order. */
+/** Shared tail of a downed actor's turn: record the death-save event, advance the turn, return the step result. */
+function finishDownedTurn(
+  state: WorldState,
+  actor: Combatant,
+  narrative: string,
+  temperature: number,
+  preferredActionId?: string,
+  diceRoll?: DiceRollResult
+): ReturnType<typeof stepCombatTurn> {
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, undefined, preferredActionId);
+  const evt = recordEpisodicEvent(state, {
+    actorId: actor.id,
+    actorName: actor.name,
+    actionType: 'death_save',
+    diceRoll,
+    narrativeSummary: narrative,
+  });
+  advanceTurnCounters(state);
+  return {
+    actorId: actor.id,
+    actorName: actor.name,
+    decisionReport,
+    resolutionNarrative: narrative,
+    eventRecorded: evt,
+  };
+}
+
 function fireVillainActions(state: WorldState, actorId: string): void {
   for (const va of state.villainActions ?? []) {
     if (va.fired || va.ownerId !== actorId || state.round < va.round) continue;
