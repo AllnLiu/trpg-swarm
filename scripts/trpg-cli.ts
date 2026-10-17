@@ -324,7 +324,8 @@ function main(): void {
         state,
         actorId,
         temperature,
-        flags['action-id'] as string | undefined
+        flags['action-id'] as string | undefined,
+        flags.target as string | undefined
       );
       saveWorldState(statePath, state);
 
@@ -450,7 +451,7 @@ Commands:
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
-  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--temperature <num>] [--json]
+  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

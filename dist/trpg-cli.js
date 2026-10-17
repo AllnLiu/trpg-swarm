@@ -946,7 +946,7 @@ function computeSoftmaxProbabilities(utilities, temperature = 0.65) {
   const sumExp = exps.reduce((acc, v) => acc + v, 0);
   return exps.map((e) => e / sumExp);
 }
-function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGlobalRng(), preferredActionId) {
+function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGlobalRng(), preferredActionId, preferredTargetId) {
   const actor = state.combatants[actorId];
   if (!actor) {
     throw new Error(`Combatant "${actorId}" not found in WorldState.`);
@@ -1071,13 +1071,19 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
       break;
     }
   }
-  if (preferredActionId) {
-    const override = candidates.find((c) => c.id === preferredActionId) ?? [...candidates].filter((c) => c.action.id === preferredActionId).sort((a, b2) => b2.totalUtility - a.totalUtility)[0];
+  if (preferredActionId || preferredTargetId) {
+    const pool = candidates.filter(
+      (c) => (!preferredActionId || c.id === preferredActionId || c.action.id === preferredActionId) && (!preferredTargetId || c.targetId === preferredTargetId)
+    );
+    const override = [...pool].sort((a, b2) => b2.totalUtility - a.totalUtility)[0];
     if (!override) {
-      const allActionIds = candidates.map((c) => c.action.id);
-      const legalActionIds = allActionIds.filter((id, i) => allActionIds.indexOf(id) === i);
+      const unique = (ids) => ids.filter((id, i) => ids.indexOf(id) === i);
+      const legalActionIds = unique(candidates.map((c) => c.action.id));
+      const legalTargetIds = unique(
+        candidates.filter((c) => !preferredActionId || c.action.id === preferredActionId).map((c) => c.targetId).filter((id) => Boolean(id))
+      );
       throw new Error(
-        `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). Legal action ids: ${legalActionIds.join(", ")}. Re-run ai-decide for current candidates.`
+        preferredTargetId && (!preferredActionId || legalActionIds.includes(preferredActionId)) ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. Legal target ids: ${legalTargetIds.join(", ")}.` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). Legal action ids: ${legalActionIds.join(", ")}. Re-run ai-decide for current candidates.`
       );
     }
     selectedCandidate = override;
@@ -1693,7 +1699,7 @@ function createDefaultEncounter(system = "dnd5e", seed = 42) {
   });
   return state;
 }
-function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredActionId) {
+function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredActionId, preferredTargetId) {
   const rng = new DeterministicRNG(state.rngSeed + state.turn * 101);
   state.rngSeed = rng.getSeed();
   let actorId = overrideActorId;
@@ -1761,7 +1767,7 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
       eventRecorded: evt
     };
   }
-  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId, preferredTargetId);
   const chosen = decisionReport.selectedCandidate;
   const action = chosen.action;
   actor.position = { ...chosen.moveTo };
@@ -2555,7 +2561,8 @@ ${top3Text}`
         state,
         actorId,
         temperature,
-        flags["action-id"]
+        flags["action-id"],
+        flags.target
       );
       saveWorldState(statePath, state);
       printOutput(
@@ -2666,7 +2673,7 @@ Commands:
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
-  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--temperature <num>] [--json]
+  step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

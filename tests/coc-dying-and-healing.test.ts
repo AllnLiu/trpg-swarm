@@ -102,4 +102,15 @@ assert.throws(
   /Valid scene ids: scene-1-miskatonic-archive/
 );
 
+// 7. step-turn --target: the chosen candidate aims at the named combatant; a bad target lists the legal ones.
+for (const target of ['enemy-skeleton-guard-1', 'enemy-skeleton-guard-2']) {
+  const duel = campaignBookToWorldState(load('crimson-crypt'));
+  const aimed = stepCombatTurn(duel, 'player-hero', 0.65, 'heavy_crossbow', target);
+  assert.equal(aimed.decisionReport.selectedCandidate.targetId, target);
+}
+assert.throws(
+  () => stepCombatTurn(campaignBookToWorldState(load('crimson-crypt')), 'player-hero', 0.65, 'heavy_crossbow', 'nobody'),
+  /Legal target ids: .*enemy-skeleton-guard-1/
+);
+
 console.log('coc-dying-and-healing: all assertions passed');

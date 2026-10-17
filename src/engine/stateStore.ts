@@ -698,7 +698,8 @@ export function stepCombatTurn(
   state: WorldState,
   overrideActorId?: string,
   temperature = 0.65,
-  preferredActionId?: string
+  preferredActionId?: string,
+  preferredTargetId?: string
 ): {
   actorId: string;
   actorName: string;
@@ -784,7 +785,7 @@ export function stepCombatTurn(
   }
 
   // Run Softmax Situational Tactical AI
-  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId);
+  const decisionReport = evaluateTacticalActions(state, actor.id, temperature, rng, preferredActionId, preferredTargetId);
   const chosen = decisionReport.selectedCandidate;
   const action = chosen.action;
 
