@@ -39,6 +39,12 @@ const EXAMPLE_ALIASES: Record<string, string> = {
   'arkham-shadow': 'coc7e/arkham-shadow.json',
   arkham: 'coc7e/arkham-shadow.json',
   coc7e: 'coc7e/arkham-shadow.json',
+  'haunting-corbitt': 'campaign-haunting-corbitt.json',
+  haunting: 'campaign-haunting-corbitt.json',
+  corbitt: 'campaign-haunting-corbitt.json',
+  'goblin-hole': 'pbta/goblin-hole.json',
+  goblin: 'pbta/goblin-hole.json',
+  pbta: 'pbta/goblin-hole.json',
 };
 
 interface ParsedArgs {

@@ -2399,7 +2399,13 @@ var EXAMPLE_ALIASES = {
   dnd5e: "dnd5e/crimson-crypt.json",
   "arkham-shadow": "coc7e/arkham-shadow.json",
   arkham: "coc7e/arkham-shadow.json",
-  coc7e: "coc7e/arkham-shadow.json"
+  coc7e: "coc7e/arkham-shadow.json",
+  "haunting-corbitt": "campaign-haunting-corbitt.json",
+  haunting: "campaign-haunting-corbitt.json",
+  corbitt: "campaign-haunting-corbitt.json",
+  "goblin-hole": "pbta/goblin-hole.json",
+  goblin: "pbta/goblin-hole.json",
+  pbta: "pbta/goblin-hole.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);

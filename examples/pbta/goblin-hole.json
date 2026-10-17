@@ -1,0 +1,371 @@
+{
+  "campaignId": "campaign-goblin-hole",
+  "title": "哥布林洞窟 (The Goblin Hole)",
+  "system": "pbta",
+  "version": "1.0.0",
+  "license": "CC-BY-3.0 (Based on The Goblin Hole by Marshall Miller, for Dungeon World by Sage LaTorra & Adam Koebel)",
+  "attribution": "Original framework by Marshall Miller. PbtA 2d6 engine adaptation for TRPG-Swarm.",
+  "synopsis": "荒野邊陲的深谷山壁間，隱藏著一座散發惡臭與刺耳譏笑的哥布林洞窟。成群的掠奪者在此盤踞，布設了粗糙卻致命的原木擺錘陷阱。冒險者小隊受邊境哨所委託潛入洞窟，深入獸欄並討伐首領『碎齒』，奪回被劫掠的物資。",
+  "sessionState": {
+    "round": 1,
+    "turn": 1,
+    "activeEncounter": "area-1-entrance-thicket",
+    "sceneId": "area-1-entrance-thicket",
+    "dangerLevel": 2
+  },
+  "party": [
+    {
+      "id": "player-hero",
+      "name": "格倫·鐵壁 (Garen Ironwall)",
+      "controlledBy": "human",
+      "race": "Human",
+      "class": "The Fighter (戰士)",
+      "level": 1,
+      "hp": {
+        "current": 20,
+        "max": 20
+      },
+      "armor": 2,
+      "pbtaMods": {
+        "str": 2,
+        "dex": 1,
+        "con": 1,
+        "int": 0,
+        "wis": -1,
+        "cha": 0
+      },
+      "actions": [
+        {
+          "id": "hack-and-slash",
+          "name": "近戰搏殺 (Hack and Slash)",
+          "type": "attack",
+          "range": 1,
+          "damageFormula": "1d10+2",
+          "pbtaStat": "str"
+        },
+        {
+          "id": "defend",
+          "name": "嚴密防禦 (Defend)",
+          "type": "utility",
+          "range": 1,
+          "pbtaStat": "con"
+        }
+      ],
+      "inventory": [
+        "巨劍",
+        "鎖子甲",
+        "火把 x2",
+        "冒險口糧 x3"
+      ],
+      "position": {
+        "areaId": "area-1-entrance-thicket",
+        "x": 2,
+        "y": 3
+      }
+    },
+    {
+      "id": "companion-rogue",
+      "name": "薇拉·暗影 (Vera Shadowstep)",
+      "controlledBy": "agent",
+      "race": "Halfling",
+      "class": "The Thief (盜賊)",
+      "level": 1,
+      "hp": {
+        "current": 16,
+        "max": 16
+      },
+      "armor": 1,
+      "pbtaMods": {
+        "str": -1,
+        "dex": 2,
+        "con": 1,
+        "int": 1,
+        "wis": 0,
+        "cha": 1
+      },
+      "actions": [
+        {
+          "id": "volley",
+          "name": "精準齊射 (Volley)",
+          "type": "attack",
+          "range": 12,
+          "damageFormula": "1d8",
+          "pbtaStat": "dex"
+        },
+        {
+          "id": "backstab",
+          "name": "背刺伏擊 (Backstab)",
+          "type": "attack",
+          "range": 1,
+          "damageFormula": "1d8+1d6",
+          "pbtaStat": "dex"
+        }
+      ],
+      "inventory": [
+        "短弓",
+        "匕首",
+        "盜賊工具",
+        "煙霧彈"
+      ],
+      "position": {
+        "areaId": "area-1-entrance-thicket",
+        "x": 1,
+        "y": 2
+      }
+    },
+    {
+      "id": "companion-wizard",
+      "name": "奧瑞恩·星輝 (Orion Starfire)",
+      "controlledBy": "agent",
+      "race": "Elf",
+      "class": "The Wizard (法師)",
+      "level": 1,
+      "hp": {
+        "current": 12,
+        "max": 12
+      },
+      "armor": 0,
+      "pbtaMods": {
+        "str": -1,
+        "dex": 1,
+        "con": 0,
+        "int": 2,
+        "wis": 1,
+        "cha": -1
+      },
+      "actions": [
+        {
+          "id": "magic-missile",
+          "name": "奧術飛彈 (Magic Missile)",
+          "type": "attack",
+          "range": 10,
+          "damageFormula": "2d4",
+          "pbtaStat": "int"
+        },
+        {
+          "id": "cast-spell-light",
+          "name": "光亮術 (Light)",
+          "type": "utility",
+          "range": 5,
+          "pbtaStat": "int"
+        }
+      ],
+      "inventory": [
+        "法杖",
+        "法術書",
+        "法術素材袋"
+      ],
+      "position": {
+        "areaId": "area-1-entrance-thicket",
+        "x": 1,
+        "y": 4
+      }
+    }
+  ],
+  "dungeonAreas": [
+    {
+      "areaId": "area-1-entrance-thicket",
+      "name": "荊棘洞口與樹木擺錘 (Entrance Thicket & Log Trap)",
+      "gridSize": {
+        "width": 10,
+        "height": 8
+      },
+      "fogOfWar": true,
+      "ambientDescription": "腐爛樹葉與潮濕泥土的味道撲鼻而來。洞口被帶刺灌木半掩，頭頂高處懸吊著帶銳利鹿角的笨重原木陷阱。",
+      "exits": [
+        {
+          "direction": "north",
+          "leadsTo": "area-2-warren-kennels"
+        }
+      ],
+      "terrainFeatures": [
+        {
+          "name": "帶刺灌木叢",
+          "type": "rough_terrain",
+          "coords": [
+            {
+              "x": 3,
+              "y": 1
+            },
+            {
+              "x": 3,
+              "y": 2
+            }
+          ]
+        }
+      ],
+      "trapsAndHazards": [
+        {
+          "id": "trap-swinging-log",
+          "name": "鹿角擺錘陷阱 (Swinging Antler Log)",
+          "location": {
+            "x": 4,
+            "y": 3
+          },
+          "trigger": "踏中地面隱藏絆線",
+          "dc": 10,
+          "damage": "2d6",
+          "detected": false
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-goblin-scout-1",
+          "name": "哥布林前哨斥候 A",
+          "monsterType": "Goblin",
+          "status": "active",
+          "ac": 11,
+          "hp": {
+            "current": 7,
+            "max": 7
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "生鏽短劍",
+              "bonus": 3,
+              "damage": "1d6+1"
+            }
+          ],
+          "position": {
+            "x": 6,
+            "y": 3
+          }
+        },
+        {
+          "entityId": "enemy-goblin-scout-2",
+          "name": "哥布林投石手 B",
+          "monsterType": "Goblin",
+          "status": "active",
+          "ac": 10,
+          "hp": {
+            "current": 6,
+            "max": 6
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "粗製投石索",
+              "bonus": 4,
+              "damage": "1d4+1"
+            }
+          ],
+          "position": {
+            "x": 7,
+            "y": 4
+          }
+        }
+      ],
+      "lootAndClues": [
+        {
+          "type": "clue",
+          "name": "巡邏足跡",
+          "description": "泥濘地面留有通往深處獸欄的混亂爪印。"
+        }
+      ]
+    },
+    {
+      "areaId": "area-2-warren-kennels",
+      "name": "泥濘獸欄 (Warren Kennels)",
+      "gridSize": {
+        "width": 10,
+        "height": 8
+      },
+      "fogOfWar": true,
+      "ambientDescription": "惡臭逼人的泥濘坑道。幾隻骨瘦嶙峋、眼冒凶光的地底惡犬正伏在石槽旁撕咬骨頭。",
+      "exits": [
+        {
+          "direction": "south",
+          "leadsTo": "area-1-entrance-thicket"
+        },
+        {
+          "direction": "east",
+          "leadsTo": "area-3-chieftain-lair"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-goblin-hound",
+          "name": "狂暴哥布林戰犬",
+          "monsterType": "Beast",
+          "status": "active",
+          "ac": 12,
+          "hp": {
+            "current": 11,
+            "max": 11
+          },
+          "speed": 40,
+          "attacks": [
+            {
+              "name": "撕咬撕扯",
+              "bonus": 4,
+              "damage": "1d6+2"
+            }
+          ],
+          "position": {
+            "x": 5,
+            "y": 4
+          }
+        }
+      ],
+      "lootAndClues": []
+    },
+    {
+      "areaId": "area-3-chieftain-lair",
+      "name": "酋長大廳 (Chieftain Snaggletooth's Lair)",
+      "gridSize": {
+        "width": 12,
+        "height": 8
+      },
+      "fogOfWar": true,
+      "ambientDescription": "由堆疊破布與骨頭堆積出的王座。哥布林酋長『碎齒』手持鋸齒砍刀，正對著入侵者發出尖嘯咆哮。",
+      "exits": [
+        {
+          "direction": "west",
+          "leadsTo": "area-2-warren-kennels"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "boss-chieftain-snaggletooth",
+          "name": "哥布林酋長「碎齒」",
+          "monsterType": "Goblin Boss",
+          "status": "active",
+          "ac": 14,
+          "hp": {
+            "current": 22,
+            "max": 22
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "鋸齒戰斧斬",
+              "bonus": 5,
+              "damage": "1d10+2"
+            },
+            {
+              "name": "野蠻飛踢",
+              "bonus": 4,
+              "damage": "1d4+1"
+            }
+          ],
+          "position": {
+            "x": 9,
+            "y": 4
+          }
+        }
+      ],
+      "lootAndClues": [
+        {
+          "type": "treasure",
+          "name": "被掠奪的商隊金幣",
+          "description": "裝滿邊境金幣與一把鑲嵌綠松石的獵刀。"
+        }
+      ]
+    }
+  ],
+  "partyBonds": [
+    "薇拉在多年前的伏擊戰中曾救過格倫的命。",
+    "奧瑞恩對洞窟內的古老地質感興趣，但也提防著獸群突襲。"
+  ]
+}
