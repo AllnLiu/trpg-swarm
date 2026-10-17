@@ -1,9 +1,9 @@
 /**
- * Regression checks for two engine fixes:
- * 1. CoC 7e: 0 HP no longer kills an investigator outright (major wound -> dying, else unconscious).
- * 2. D&D 5e: prepared healing spells in `spellcasting` become heal actions, with spell slots.
+ * Regression checks for the engine fixes on this branch: CoC dying/unconscious, D&D healing spells and
+ * slots, damage types, villain actions, CoC First Aid, scene/target options, hazard cells, adjust/temp HP,
+ * and save damage downing allies.
  *
- * Run: node --experimental-strip-types tests/coc-dying-and-healing.test.ts
+ * Run: node --experimental-strip-types tests/engine-fixes.test.ts
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -157,4 +157,4 @@ for (let i = 0; i < 20 && !faller.conditions.includes('unconscious'); i++) {
 assert.equal(faller.hp, 0);
 assert.ok(faller.conditions.includes('unconscious') && faller.isAlive, 'save damage downs the ally');
 
-console.log('coc-dying-and-healing: all assertions passed');
+console.log('engine-fixes: all assertions passed');
