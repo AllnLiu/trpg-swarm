@@ -9,3 +9,4 @@ state.json
 .DS_Store
 Thumbs.db
 *.log
+tests/headless-100-report.json
