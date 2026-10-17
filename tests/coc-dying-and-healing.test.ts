@@ -94,4 +94,12 @@ firstAid.attackBonus = 100;
 stepCombatTurn(aid, 'trpg-companion-healer', 0.65, 'first_aid');
 assert.ok(!downed.conditions.includes('dying') && downed.hp === 1, 'successful first aid stabilises');
 
+// 6. Scene override: load the book at another scene; a bad id lists the valid ones.
+const atPier = campaignBookToWorldState(load('arkham-shadow'), 42, 'scene-3-pier-4-warehouse');
+assert.ok('enemy-dock-deep-one-scout' in atPier.combatants);
+assert.throws(
+  () => campaignBookToWorldState(load('arkham-shadow'), 42, 'nope'),
+  /Valid scene ids: scene-1-miskatonic-archive/
+);
+
 console.log('coc-dying-and-healing: all assertions passed');

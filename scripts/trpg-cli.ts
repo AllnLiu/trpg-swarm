@@ -142,7 +142,7 @@ function main(): void {
 
       if (example) {
         const examplePath = resolveExampleFile(String(example));
-        const state = importWorldState(examplePath, seed ?? 42);
+        const state = importWorldState(examplePath, seed ?? 42, flags.scene as string | undefined);
         saveWorldState(statePath, state);
         const summaryObj = {
           status: 'initialized',
@@ -442,7 +442,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> --state <path>   (load bundled example campaign)
+             --example <crimson-crypt|arkham-shadow> [--scene <sceneId|areaId>] --state <path>   (load bundled example campaign, optionally at another scene)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]

@@ -268,14 +268,18 @@ function baseCombatant(partial: Partial<Combatant> & Pick<Combatant, 'id' | 'nam
 // Main converter
 // ---------------------------------------------------------------------------
 
-export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldState {
+export function campaignBookToWorldState(book: CampaignBook, seed = 42, sceneOverride?: string): WorldState {
   const system = (book.system ?? 'dnd5e').toLowerCase() as RuleSystem;
   if (!['dnd5e', 'coc7e', 'pbta'].includes(system)) {
     throw new Error(`Unsupported campaign system "${book.system}" (expected dnd5e | coc7e | pbta).`);
   }
 
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  const sceneId = book.sessionState?.sceneId;
+  if (sceneOverride && !areas.some((a) => a.sceneId === sceneOverride || a.areaId === sceneOverride)) {
+    const valid = areas.map((a) => a.sceneId ?? a.areaId).join(', ');
+    throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
+  }
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
   const area =
     areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
   const map = buildMapFromArea(area);
@@ -531,7 +535,7 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
  * Loads a JSON file that is either already a WorldState (passes through) or a
  * campaign book (converted automatically). This is the import entry point.
  */
-export function importWorldState(filePath: string, seed = 42): WorldState {
+export function importWorldState(filePath: string, seed = 42, sceneOverride?: string): WorldState {
   const abs = path.resolve(filePath);
   const raw: unknown = JSON.parse(fs.readFileSync(abs, 'utf-8'));
   if (
@@ -543,5 +547,5 @@ export function importWorldState(filePath: string, seed = 42): WorldState {
   ) {
     return raw as WorldState;
   }
-  return campaignBookToWorldState(raw as CampaignBook, seed);
+  return campaignBookToWorldState(raw as CampaignBook, seed, sceneOverride);
 }

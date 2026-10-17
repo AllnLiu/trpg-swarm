@@ -2057,13 +2057,17 @@ function baseCombatant(partial) {
     ...partial
   };
 }
-function campaignBookToWorldState(book, seed = 42) {
+function campaignBookToWorldState(book, seed = 42, sceneOverride) {
   const system = (book.system ?? "dnd5e").toLowerCase();
   if (!["dnd5e", "coc7e", "pbta"].includes(system)) {
     throw new Error(`Unsupported campaign system "${book.system}" (expected dnd5e | coc7e | pbta).`);
   }
   const areas = book.dungeonAreas ?? book.investigationScenes ?? [];
-  const sceneId = book.sessionState?.sceneId;
+  if (sceneOverride && !areas.some((a) => a.sceneId === sceneOverride || a.areaId === sceneOverride)) {
+    const valid = areas.map((a) => a.sceneId ?? a.areaId).join(", ");
+    throw new Error(`Unknown scene "${sceneOverride}". Valid scene ids: ${valid}`);
+  }
+  const sceneId = sceneOverride ?? book.sessionState?.sceneId;
   const area = areas.find((a) => a.sceneId === sceneId || a.areaId === sceneId) ?? areas[0];
   const map = buildMapFromArea(area);
   const combatants = {};
@@ -2289,13 +2293,13 @@ function campaignBookToWorldState(book, seed = 42) {
   });
   return state;
 }
-function importWorldState(filePath, seed = 42) {
+function importWorldState(filePath, seed = 42, sceneOverride) {
   const abs = path2.resolve(filePath);
   const raw = JSON.parse(fs2.readFileSync(abs, "utf-8"));
   if (raw && typeof raw === "object" && "combatants" in raw && "initiativeOrder" in raw && "ruleSystem" in raw) {
     return raw;
   }
-  return campaignBookToWorldState(raw, seed);
+  return campaignBookToWorldState(raw, seed, sceneOverride);
 }
 
 // scripts/trpg-cli.ts
@@ -2384,7 +2388,7 @@ function main() {
       const statePath = flags.state ?? DEFAULT_STATE_PATH;
       if (example) {
         const examplePath = resolveExampleFile(String(example));
-        const state2 = importWorldState(examplePath, seed ?? 42);
+        const state2 = importWorldState(examplePath, seed ?? 42, flags.scene);
         saveWorldState(statePath, state2);
         const summaryObj2 = {
           status: "initialized",
@@ -2654,7 +2658,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> --state <path>   (load bundled example campaign)
+             --example <crimson-crypt|arkham-shadow> [--scene <sceneId|areaId>] --state <path>   (load bundled example campaign, optionally at another scene)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
