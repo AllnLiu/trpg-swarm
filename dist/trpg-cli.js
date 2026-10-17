@@ -1105,7 +1105,7 @@ function evaluateTacticalActions(state, actorId, temperature = 0.65, rng = getGl
       );
       const actionOk = !preferredActionId || legalActionIds.includes(preferredActionId);
       throw new Error(
-        (actionOk ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. ` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) + `Legal action ids: ${legalActionIds.join(", ")}. Legal target ids: ${legalTargetIds.join(", ")}.`
+        (actionOk ? `Target "${preferredTargetId}" is not a legal target for "${actor.name}" (${actor.id})${preferredActionId ? ` with action "${preferredActionId}"` : ""}. ` : `Action "${preferredActionId}" is not a legal candidate for "${actor.name}" (${actor.id}). `) + `Legal action ids: ${legalActionIds.join(", ")}. Legal target ids: ${legalTargetIds.join(", ")}. Re-run ai-decide for current candidates.`
       );
     }
     selectedCandidate = override;
