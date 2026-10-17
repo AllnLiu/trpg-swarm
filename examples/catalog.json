@@ -1,0 +1,28 @@
+[
+  {
+    "id": "campaign-crimson-crypt",
+    "title": "緋紅地窖的隕落聖物 (The Fallen Relic of the Crimson Crypt)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/crimson-crypt.json",
+    "alias": [
+      "crimson-crypt",
+      "crimson",
+      "dnd5e"
+    ],
+    "partySize": 5,
+    "synopsis": "三百年前，聖騎士團長馬爾科姆爵士帶著『晨曦聖杯』深入鴉巢修道院地底鎮壓死靈瘟疫，卻再也沒有歸來。如今，地窖深處再次滲出緋紅血霧，周遭村莊的死者紛紛從墓中爬起。冒險者小隊受晨曦教會委託踏入這座被遺忘的地下墓穴，必須突破機關迴廊、血祭禮拜堂，並在深淵祭壇擊敗墮落為不死領主的馬爾科姆爵士，奪回或淨化晨曦聖杯。"
+  },
+  {
+    "id": "campaign-arkham-shadow",
+    "title": "阿卡姆碼頭的星之低語 (Star-Whispers at Arkham Docks)",
+    "system": "coc7e",
+    "relativePath": "coc7e/arkham-shadow.json",
+    "alias": [
+      "arkham-shadow",
+      "arkham",
+      "coc7e"
+    ],
+    "partySize": 5,
+    "synopsis": "1926年10月的新英格蘭深秋，密斯卡托尼克河口連日籠罩著散發腐臭魚腥味的濃霧。三天前，來自印斯茅斯方向的貨輪『塞壬號 (S.S. Siren)』在阿卡姆北側廢棄的 4 號碼頭擱淺，同日密大考古系學生亞瑟·馬什離奇失蹤，只留下一捲錄滿非人咕噥聲與海浪拍擊聲的蠟筒錄音。當朔月大潮將在今夜子時來臨，調查員團隊必須在理智徹底崩潰前，揭開碼頭倉庫、河畔旅店與水下海蝕洞中的達貢密教陰謀。"
+  }
+]

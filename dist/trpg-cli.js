@@ -2,6 +2,7 @@
 
 // scripts/trpg-cli.ts
 import * as path3 from "node:path";
+import * as fs3 from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // src/engine/dice.ts
@@ -2393,12 +2394,12 @@ function importWorldState(filePath, seed = 42, sceneOverride) {
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
-  "crimson-crypt": "campaign-crimson-crypt.json",
-  crimson: "campaign-crimson-crypt.json",
-  dnd5e: "campaign-crimson-crypt.json",
-  "arkham-shadow": "campaign-arkham-shadow.json",
-  arkham: "campaign-arkham-shadow.json",
-  coc7e: "campaign-arkham-shadow.json"
+  "crimson-crypt": "dnd5e/crimson-crypt.json",
+  crimson: "dnd5e/crimson-crypt.json",
+  dnd5e: "dnd5e/crimson-crypt.json",
+  "arkham-shadow": "coc7e/arkham-shadow.json",
+  arkham: "coc7e/arkham-shadow.json",
+  coc7e: "coc7e/arkham-shadow.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);
@@ -2434,9 +2435,45 @@ function printOutput(data, asJson, humanText) {
   }
 }
 function resolveExampleFile(requested) {
-  const normalized = requested.toLowerCase().replace(/\.json$/, "");
-  const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
-  return path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..", "examples", fileName);
+  const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+  const cleanRequested = requested.trim();
+  const withJson = cleanRequested.endsWith(".json") ? cleanRequested : `${cleanRequested}.json`;
+  const candidateDirect = path3.resolve(process.cwd(), cleanRequested);
+  if (fs3.existsSync(candidateDirect) && fs3.statSync(candidateDirect).isFile()) {
+    return candidateDirect;
+  }
+  const candidateDirectJson = path3.resolve(process.cwd(), withJson);
+  if (fs3.existsSync(candidateDirectJson) && fs3.statSync(candidateDirectJson).isFile()) {
+    return candidateDirectJson;
+  }
+  const candidateCampaign = path3.resolve(rootDir, "campaigns", withJson);
+  if (fs3.existsSync(candidateCampaign) && fs3.statSync(candidateCampaign).isFile()) {
+    return candidateCampaign;
+  }
+  const normalized = cleanRequested.toLowerCase().replace(/\.json$/, "");
+  const relativeFromAlias = EXAMPLE_ALIASES[normalized];
+  if (relativeFromAlias) {
+    const p = path3.resolve(rootDir, "examples", relativeFromAlias);
+    if (fs3.existsSync(p)) return p;
+  }
+  const examplesDir = path3.resolve(rootDir, "examples");
+  const candidateBaseNames = [
+    cleanRequested,
+    withJson,
+    `campaign-${withJson.replace(/^campaign-/, "")}`,
+    withJson.replace(/^campaign-/, "")
+  ];
+  for (const sub of ["", "dnd5e", "coc7e", "pbta"]) {
+    for (const name of candidateBaseNames) {
+      const target = path3.resolve(examplesDir, sub, name);
+      if (fs3.existsSync(target) && fs3.statSync(target).isFile()) {
+        return target;
+      }
+    }
+  }
+  const availableAliases = Object.keys(EXAMPLE_ALIASES).sort().join(", ");
+  throw new Error(`Scenario "${requested}" not found. Available aliases: ${availableAliases}
+Run "node dist/trpg-cli.js init --list" to view all scenarios.`);
 }
 var parseList = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
 var parseNum = (v, label) => {
@@ -2479,6 +2516,25 @@ function main() {
   }
   switch (command) {
     case "init": {
+      if (flags.list) {
+        const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+        const catalogPath = path3.resolve(rootDir, "examples", "catalog.json");
+        const catalog = fs3.existsSync(catalogPath) ? JSON.parse(fs3.readFileSync(catalogPath, "utf-8")) : [];
+        if (asJson) {
+          console.log(JSON.stringify(catalog, null, 2));
+        } else {
+          console.log("\n[TRPG-Swarm \u5167\u5EFA\u7D93\u5178\u6230\u5F79\u5287\u672C\u5EAB]\n");
+          for (const item of catalog) {
+            const aliases = Array.isArray(item.alias) ? item.alias.join(" | ") : item.alias;
+            console.log(`- [${item.system.toUpperCase()}] ${item.title} (\u5225\u540D: ${aliases})`);
+            console.log(`  \u8DEF\u5F91: ${item.relativePath} | \u968A\u4F0D: ${item.partySize}`);
+            console.log(`  \u7C21\u4ECB: ${item.synopsis}
+`);
+          }
+          console.log("\u8F09\u5165\u65B9\u5F0F: node dist/trpg-cli.js init --example <\u5225\u540D> --state ./campaign-state.json\n");
+        }
+        break;
+      }
       const example = flags.example;
       const statePath = flags.state ?? DEFAULT_STATE_PATH;
       if (example) {
@@ -2772,8 +2828,8 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
   node --experimental-strip-types scripts/trpg-cli.ts <command> [options]   (Node >= 22.6)
 
 Commands:
-  init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> [--scene <sceneId|areaId>] --state <path>   (load bundled example campaign, optionally at another scene)
+  init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
+             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
