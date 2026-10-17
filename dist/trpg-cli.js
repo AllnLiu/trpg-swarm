@@ -283,16 +283,7 @@ function resolveDnD5eAttack(opts) {
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
     totalDamage = takeDnDDamage(defender, Math.max(1, damageRoll.total), action.damageType);
-    if (defender.hp === 0) {
-      if (defender.faction === "enemy") {
-        defender.isAlive = false;
-      } else {
-        if (!defender.conditions.includes("unconscious")) {
-          defender.conditions.push("unconscious");
-        }
-        defender.deathSaves = defender.deathSaves ?? { successes: 0, failures: 0, isStable: false };
-      }
-    }
+    if (defender.hp === 0) dropAtZeroHp(defender);
     if (defender.concentratingOn && defender.hp > 0) {
       const concCheck = resolveConcentrationCheck(defender, totalDamage, rng);
       concentrationBroken = !concCheck.maintained;
@@ -343,9 +334,7 @@ function resolveDnD5eSavingThrow(caster, target, action, halfOnSave = true, rng 
       damageTaken = damageRoll.total;
     }
     damageTaken = takeDnDDamage(target, damageTaken, action.damageType);
-    if (target.hp === 0 && target.faction === "enemy") {
-      target.isAlive = false;
-    }
+    if (target.hp === 0) dropAtZeroHp(target);
   }
   if (!succeeded && action.appliesCondition) {
     conditionApplied = action.appliesCondition;
@@ -569,6 +558,14 @@ function absorbTempHp(target, damage) {
   const soaked = Math.min(target.tempHp ?? 0, damage);
   if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
   return damage - soaked;
+}
+function dropAtZeroHp(c) {
+  if (c.faction === "enemy") {
+    c.isAlive = false;
+    return;
+  }
+  if (!c.conditions.includes("unconscious")) c.conditions.push("unconscious");
+  c.deathSaves = c.deathSaves ?? { successes: 0, failures: 0, isStable: false };
 }
 function takeDnDDamage(target, amount, damageType) {
   const adjusted = adjustDamageForType(amount, damageType, target);

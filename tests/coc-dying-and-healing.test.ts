@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
-import { absorbTempHp, adjustDamageForType, applyCoC7eDamage } from '../src/engine/rulesEngine.ts';
+import { absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
 const load = (name: string) =>
@@ -145,5 +145,16 @@ for (let i = 0; i < 12 && dummy.tempHp === 100; i++) {
 }
 assert.ok(dummy.tempHp < 100, 'a hit landed');
 assert.equal(dummy.hp, dummy.maxHp, 'temp HP soaked the damage');
+
+// 10. A failed save that drops an ally to 0 HP leaves them unconscious, like an attack does.
+const fall = campaignBookToWorldState(load('crimson-crypt'));
+const faller = fall.combatants['trpg-companion-rogue'];
+const trap = { id: 'test-blast', name: 'blast', type: 'save', saveAbility: 'dex', saveDC: 99, damageFormula: '50' } as unknown as Parameters<typeof resolveDnD5eSavingThrow>[2];
+for (let i = 0; i < 20 && !faller.conditions.includes('unconscious'); i++) {
+  faller.hp = 1;
+  resolveDnD5eSavingThrow(fall.combatants['enemy-skeleton-guard-1'], faller, trap, false);
+}
+assert.equal(faller.hp, 0);
+assert.ok(faller.conditions.includes('unconscious') && faller.isAlive, 'save damage downs the ally');
 
 console.log('coc-dying-and-healing: all assertions passed');
