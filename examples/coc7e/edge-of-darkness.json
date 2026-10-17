@@ -1,0 +1,436 @@
+{
+  "campaignId": "campaign-edge-of-darkness",
+  "title": "黑暗邊緣 (Edge of Darkness)",
+  "system": "coc7e",
+  "era": "1920s",
+  "version": "1.0.0",
+  "synopsis": "三十年前，一群密斯卡托尼克大學的年輕學子在羅斯角（Ross's Corners）的一間廢棄農舍進行了魯莽的召喚儀式，將一個不可名狀的異界實體囚禁在閣樓。如今當年最後的倖存者魯珀特·梅里韋瑟病危，臨終前將裝有黃金聖甲蟲護身符、古老羊皮紙與農舍地契的鐵盒交託給調查員，哀求他們前往農舍主持驅魔儀式，徹底終結這場夢魘。",
+  "sessionState": {
+    "sceneId": "scene-1-saint-mary-hospital",
+    "roundNumber": 1,
+    "turnIndex": 0
+  },
+  "party": [
+    {
+      "id": "player-investigator",
+      "name": "愛德華·卡特 (Edward Carter)",
+      "controlledBy": "human",
+      "occupation": "私家偵探 (Private Investigator)",
+      "age": 34,
+      "characteristics": {
+        "STR": 60,
+        "CON": 65,
+        "SIZ": 65,
+        "DEX": 70,
+        "APP": 60,
+        "INT": 80,
+        "POW": 70,
+        "EDU": 75
+      },
+      "derivedStats": {
+        "hp": {
+          "current": 13,
+          "max": 13,
+          "majorWound": false,
+          "dying": false
+        },
+        "mp": {
+          "current": 14,
+          "max": 14
+        },
+        "sanity": {
+          "current": 70,
+          "starting": 70,
+          "max": 95,
+          "dailyLoss": 0,
+          "indefiniteThreshold": 14,
+          "insanityState": "normal"
+        },
+        "luck": {
+          "current": 65,
+          "starting": 65
+        },
+        "damageBonus": "0",
+        "build": 0,
+        "mov": 8
+      },
+      "skills": {
+        "Spot Hidden": 75,
+        "Listen": 65,
+        "Psychology": 70,
+        "Library Use": 60,
+        "Persuasion": 65,
+        "Firearms: Handgun": 65,
+        "Fighting: Brawl": 55,
+        "Dodge": 45,
+        "Occult": 40,
+        "Cthulhu Mythos": 2
+      },
+      "weapons": [
+        {
+          "name": ".38 左輪手槍",
+          "skill": "Firearms: Handgun",
+          "percentage": 65,
+          "damage": "1d10",
+          "range": "15 yds",
+          "attacksPerRound": "1",
+          "ammo": 6,
+          "malfunction": 100
+        },
+        {
+          "name": "徒手搏擊",
+          "skill": "Fighting: Brawl",
+          "percentage": 55,
+          "damage": "1d6",
+          "range": "touch"
+        }
+      ],
+      "inventory": [
+        ".38 左輪手槍",
+        "黃銅防風打火機",
+        "手電筒",
+        "調查筆記本"
+      ],
+      "phobiasAndManias": []
+    },
+    {
+      "id": "companion-scholar",
+      "name": "塞拉斯·阿伯內西 (Silas Abernathy)",
+      "controlledBy": "ai-swarm",
+      "occupation": "密大中世紀拉丁語學者 (Miskatonic Scholar)",
+      "age": 41,
+      "characteristics": {
+        "STR": 45,
+        "CON": 55,
+        "SIZ": 50,
+        "DEX": 55,
+        "APP": 50,
+        "INT": 85,
+        "POW": 75,
+        "EDU": 90
+      },
+      "derivedStats": {
+        "hp": {
+          "current": 10,
+          "max": 10,
+          "majorWound": false,
+          "dying": false
+        },
+        "mp": {
+          "current": 15,
+          "max": 15
+        },
+        "sanity": {
+          "current": 75,
+          "starting": 75,
+          "max": 90,
+          "dailyLoss": 0,
+          "indefiniteThreshold": 15,
+          "insanityState": "normal"
+        },
+        "luck": {
+          "current": 50,
+          "starting": 50
+        },
+        "damageBonus": "0",
+        "build": 0,
+        "mov": 7
+      },
+      "skills": {
+        "Library Use": 85,
+        "Occult": 75,
+        "Language: Latin": 80,
+        "Spot Hidden": 55,
+        "First Aid": 60,
+        "Dodge": 30,
+        "Cthulhu Mythos": 5
+      },
+      "weapons": [
+        {
+          "name": "沉重木手杖",
+          "skill": "Fighting: Brawl",
+          "percentage": 45,
+          "damage": "1d6",
+          "range": "touch"
+        }
+      ],
+      "inventory": [
+        "牛津便攜拉丁文詞典",
+        "放大鏡",
+        "魯珀特的古老羊皮紙儀式手抄本",
+        "急救包"
+      ],
+      "phobiasAndManias": []
+    },
+    {
+      "id": "companion-medic",
+      "name": "克萊兒·范斯 (Claire Vance)",
+      "controlledBy": "ai-swarm",
+      "occupation": "聖瑪麗醫院外科女醫師 (Surgeon)",
+      "age": 29,
+      "characteristics": {
+        "STR": 50,
+        "CON": 60,
+        "SIZ": 55,
+        "DEX": 75,
+        "APP": 65,
+        "INT": 75,
+        "POW": 80,
+        "EDU": 80
+      },
+      "derivedStats": {
+        "hp": {
+          "current": 11,
+          "max": 11,
+          "majorWound": false,
+          "dying": false
+        },
+        "mp": {
+          "current": 16,
+          "max": 16
+        },
+        "sanity": {
+          "current": 80,
+          "starting": 80,
+          "max": 99,
+          "dailyLoss": 0,
+          "indefiniteThreshold": 16,
+          "insanityState": "normal"
+        },
+        "luck": {
+          "current": 60,
+          "starting": 60
+        },
+        "damageBonus": "0",
+        "build": 0,
+        "mov": 8
+      },
+      "skills": {
+        "Medicine": 80,
+        "First Aid": 85,
+        "Psychology": 65,
+        "Science: Pharmacy": 70,
+        "Spot Hidden": 60,
+        "Dodge": 50,
+        "Fast Talk": 55
+      },
+      "weapons": [
+        {
+          "name": "手術解剖刀",
+          "skill": "Fighting: Brawl",
+          "percentage": 50,
+          "damage": "1d4+db",
+          "range": "touch"
+        }
+      ],
+      "inventory": [
+        "全套外科手術箱",
+        "嗎啡針劑 x3",
+        "消毒紗布與縫合線",
+        "嗅鹽"
+      ],
+      "phobiasAndManias": []
+    },
+    {
+      "id": "companion-soldier",
+      "name": "湯瑪斯·麥克卡錫 (Thomas McCarthy)",
+      "controlledBy": "ai-swarm",
+      "occupation": "一戰退伍老兵 / 機械技工 (War Veteran)",
+      "age": 30,
+      "characteristics": {
+        "STR": 75,
+        "CON": 75,
+        "SIZ": 70,
+        "DEX": 65,
+        "APP": 45,
+        "INT": 60,
+        "POW": 65,
+        "EDU": 60
+      },
+      "derivedStats": {
+        "hp": {
+          "current": 14,
+          "max": 14,
+          "majorWound": false,
+          "dying": false
+        },
+        "mp": {
+          "current": 13,
+          "max": 13
+        },
+        "sanity": {
+          "current": 65,
+          "starting": 65,
+          "max": 95,
+          "dailyLoss": 0,
+          "indefiniteThreshold": 13,
+          "insanityState": "normal"
+        },
+        "luck": {
+          "current": 55,
+          "starting": 55
+        },
+        "damageBonus": "+1d4",
+        "build": 1,
+        "mov": 8
+      },
+      "skills": {
+        "Firearms: Shotgun": 75,
+        "Firearms: Handgun": 60,
+        "Fighting: Brawl": 70,
+        "Mechanical Repair": 65,
+        "Electrical Repair": 55,
+        "Stealth": 60,
+        "Listen": 60,
+        "Dodge": 50
+      },
+      "weapons": [
+        {
+          "name": "12號口徑雙管獵槍",
+          "skill": "Firearms: Shotgun",
+          "percentage": 75,
+          "damage": "4d6 (close) / 2d6",
+          "range": "10/20 yds",
+          "attacksPerRound": "1 or 2",
+          "ammo": 2,
+          "malfunction": 100
+        },
+        {
+          "name": "塹壕匕首",
+          "skill": "Fighting: Brawl",
+          "percentage": 70,
+          "damage": "1d4+2+1d4",
+          "range": "touch"
+        }
+      ],
+      "inventory": [
+        "雙管獵槍 (鹿彈 10 發)",
+        "鐵鍬",
+        "工具腰帶",
+        "煤油燈與備用煤油"
+      ],
+      "phobiasAndManias": [
+        "幽閉輕微焦慮"
+      ]
+    }
+  ],
+  "investigationScenes": [
+    {
+      "sceneId": "scene-1-saint-mary-hospital",
+      "name": "場景一：聖瑪麗醫院病榻 (St. Mary Hospital - Merriweather Deathbed)",
+      "fogOfWar": "revealed",
+      "ambientDescription": "阿卡姆聖瑪麗醫院 3 樓單人病房，雨聲敲打窗戶。魯珀特·梅里韋瑟枯槁地躺在白色病床上，劇烈咳嗽。他緊握調查員的手，將一只刻有古老符文的錫盒交給你們，斷續訴說著三十年前在羅斯角農舍召喚出的怪物。",
+      "availableClues": [
+        "clue-1-tin-box",
+        "clue-2-scarab-amulet",
+        "clue-3-latin-chant"
+      ],
+      "npcs": [
+        {
+          "name": "魯珀特·梅里韋瑟 (Rupert Merriweather)",
+          "role": "委託人/垂死老友",
+          "attitude": "悔恨交加，提供黃金聖甲蟲護身符、農舍地契與完整遺言警告。"
+        }
+      ],
+      "exits": [
+        {
+          "targetSceneId": "scene-2-ross-corners-store",
+          "label": "驅車前往羅斯角雜貨店調查農舍傳聞"
+        }
+      ]
+    },
+    {
+      "sceneId": "scene-2-ross-corners-store",
+      "name": "場景二：羅斯角雜貨店與古老檔案 (Ross's Corners General Store)",
+      "fogOfWar": "hidden",
+      "ambientDescription": "鄉間泥濘小道旁的木造雜貨舖，壁爐柴火劈啪作響。店主安布羅斯對外來者帶著戒心。如果打好交道，他會透露農舍附近常有牲口莫名乾癟死去的怪事，以及十幾年前死在樹林裡的流浪漢傳奇。",
+      "availableClues": [
+        "clue-4-mutilated-livestock",
+        "clue-5-squatter-legend"
+      ],
+      "npcs": [
+        {
+          "name": "安布羅斯·克蘭 (Ambrose Crane)",
+          "role": "雜貨店老闆",
+          "attitude": "保守鎮民，通過 Persuasion 或 Fast Talk 可購得驅魔所需鹽巴、火把與蠟燭。"
+        }
+      ],
+      "exits": [
+        {
+          "targetSceneId": "scene-3-farmhouse-ritual",
+          "label": "沿泥濘小路前往密林深處的廢棄農舍"
+        }
+      ]
+    },
+    {
+      "sceneId": "scene-3-farmhouse-ritual",
+      "name": "場景三：廢棄農舍與閣樓惡靈防禦戰 (The Abandoned Farmhouse & Lurker Siege)",
+      "fogOfWar": "hidden",
+      "ambientDescription": "腐朽傾斜的兩層木農舍，夜風穿堂而過發出低嘯。地板正中央繪製著褪色的深紅色召喚五芒星符印。閣樓天花板不斷傳來沉重、濕滑且帶著惡意撞擊的木板碎裂聲。異界實體察覺到放逐儀式的啟動，開始召喚林中走肉與狂暴野獸衝擊門窗。",
+      "availableClues": [
+        "clue-6-summoning-seal",
+        "clue-7-deady-journal"
+      ],
+      "interactiveObjects": [
+        {
+          "name": "粉筆與鹽巴保護圈",
+          "interaction": "主持儀式者需連續 3 回合專注唱誦驅逐術 (Banishment Chant)"
+        },
+        {
+          "name": "農舍木板窗",
+          "interaction": "老兵可用木板與鐵釘加固窗戶防禦衝撞"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-lurker-attic",
+          "name": "閣樓潛伏之物 (The Lurker in the Attic)",
+          "entityType": "Mythos Entity",
+          "status": "active",
+          "hp": {
+            "current": 20,
+            "max": 20
+          },
+          "dex": 50,
+          "mov": 8,
+          "db": "+1d4",
+          "build": 1,
+          "armor": 1,
+          "sanityLoss": "1/1d8",
+          "attacks": [
+            {
+              "name": "異界衝擊",
+              "skill": "Fighting: Brawl",
+              "percentage": 60,
+              "damage": "1d8"
+            }
+          ]
+        },
+        {
+          "entityId": "enemy-zombie-squatter",
+          "name": "被操縱的林地走肉 (Possessed Corpse)",
+          "entityType": "Mythos Entity",
+          "status": "active",
+          "hp": {
+            "current": 12,
+            "max": 12
+          },
+          "dex": 50,
+          "mov": 8,
+          "db": "+1d4",
+          "build": 1,
+          "armor": 1,
+          "sanityLoss": "1/1d4",
+          "attacks": [
+            {
+              "name": "異界衝擊",
+              "skill": "Fighting: Brawl",
+              "percentage": 60,
+              "damage": "1d6"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 // scripts/trpg-cli.ts
 import * as path3 from "node:path";
+import * as fs3 from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // src/engine/dice.ts
@@ -2393,30 +2394,30 @@ function importWorldState(filePath, seed = 42, sceneOverride) {
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
-  "crimson-crypt": "campaign-crimson-crypt.json",
-  crimson: "campaign-crimson-crypt.json",
-  dnd5e: "campaign-crimson-crypt.json",
-  "most-potent-brew": "campaign-most-potent-brew.json",
-  "potent-brew": "campaign-most-potent-brew.json",
-  brew: "campaign-most-potent-brew.json",
-  "lost-mine": "campaign-lost-mine.json",
-  lmop: "campaign-lost-mine.json",
-  phandelver: "campaign-lost-mine.json",
-  "sunless-citadel": "campaign-sunless-citadel.json",
-  sunless: "campaign-sunless-citadel.json",
-  "arkham-shadow": "campaign-arkham-shadow.json",
-  arkham: "campaign-arkham-shadow.json",
-  coc7e: "campaign-arkham-shadow.json",
-  "edge-of-darkness": "campaign-edge-of-darkness.json",
-  edge: "campaign-edge-of-darkness.json",
-  "dead-light": "campaign-dead-light.json",
-  deadlight: "campaign-dead-light.json",
-  "indigo-galleon": "campaign-indigo-galleon.json",
-  indigo: "campaign-indigo-galleon.json",
-  galleon: "campaign-indigo-galleon.json",
-  pbta: "campaign-indigo-galleon.json",
-  "cinder-queen": "campaign-cinder-queen.json",
-  cinder: "campaign-cinder-queen.json"
+  "crimson-crypt": "dnd5e/crimson-crypt.json",
+  crimson: "dnd5e/crimson-crypt.json",
+  dnd5e: "dnd5e/crimson-crypt.json",
+  "most-potent-brew": "dnd5e/most-potent-brew.json",
+  "potent-brew": "dnd5e/most-potent-brew.json",
+  brew: "dnd5e/most-potent-brew.json",
+  "lost-mine": "dnd5e/lost-mine.json",
+  lmop: "dnd5e/lost-mine.json",
+  phandelver: "dnd5e/lost-mine.json",
+  "sunless-citadel": "dnd5e/sunless-citadel.json",
+  sunless: "dnd5e/sunless-citadel.json",
+  "arkham-shadow": "coc7e/arkham-shadow.json",
+  arkham: "coc7e/arkham-shadow.json",
+  coc7e: "coc7e/arkham-shadow.json",
+  "edge-of-darkness": "coc7e/edge-of-darkness.json",
+  edge: "coc7e/edge-of-darkness.json",
+  "dead-light": "coc7e/dead-light.json",
+  deadlight: "coc7e/dead-light.json",
+  "indigo-galleon": "pbta/indigo-galleon.json",
+  indigo: "pbta/indigo-galleon.json",
+  galleon: "pbta/indigo-galleon.json",
+  pbta: "pbta/indigo-galleon.json",
+  "cinder-queen": "pbta/cinder-queen.json",
+  cinder: "pbta/cinder-queen.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);
@@ -2452,9 +2453,35 @@ function printOutput(data, asJson, humanText) {
   }
 }
 function resolveExampleFile(requested) {
+  const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+  const candidateDirect = path3.resolve(process.cwd(), requested);
+  if (fs3.existsSync(candidateDirect) && fs3.statSync(candidateDirect).isFile()) {
+    return candidateDirect;
+  }
+  const candidateDirectJson = path3.resolve(process.cwd(), requested.endsWith(".json") ? requested : requested + ".json");
+  if (fs3.existsSync(candidateDirectJson) && fs3.statSync(candidateDirectJson).isFile()) {
+    return candidateDirectJson;
+  }
+  const candidateCampaign = path3.resolve(rootDir, "campaigns", requested.endsWith(".json") ? requested : requested + ".json");
+  if (fs3.existsSync(candidateCampaign) && fs3.statSync(candidateCampaign).isFile()) {
+    return candidateCampaign;
+  }
   const normalized = requested.toLowerCase().replace(/\.json$/, "");
-  const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
-  return path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..", "examples", fileName);
+  const relativeFromAlias = EXAMPLE_ALIASES[normalized];
+  if (relativeFromAlias) {
+    const p = path3.resolve(rootDir, "examples", relativeFromAlias);
+    if (fs3.existsSync(p)) return p;
+  }
+  const examplesDir = path3.resolve(rootDir, "examples");
+  for (const sub of ["", "dnd5e", "coc7e", "pbta"]) {
+    for (const name of [, , requested]) {
+      const target = path3.resolve(examplesDir, sub, name);
+      if (fs3.existsSync(target) && fs3.statSync(target).isFile()) {
+        return target;
+      }
+    }
+  }
+  throw new Error();
 }
 var parseList = (v) => typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : void 0;
 var parseNum = (v, label) => {
@@ -2497,6 +2524,25 @@ function main() {
   }
   switch (command) {
     case "init": {
+      if (flags.list) {
+        const rootDir = path3.resolve(path3.dirname(fileURLToPath(import.meta.url)), "..");
+        const catalogPath = path3.resolve(rootDir, "examples", "catalog.json");
+        const catalog = fs3.existsSync(catalogPath) ? JSON.parse(fs3.readFileSync(catalogPath, "utf-8")) : [];
+        if (asJson) {
+          console.log(JSON.stringify(catalog, null, 2));
+        } else {
+          console.log("\n[TRPG-Swarm \u5167\u5EFA\u7D93\u5178\u6230\u5F79\u5287\u672C\u5EAB]\n");
+          for (const item of catalog) {
+            const aliases = Array.isArray(item.alias) ? item.alias.join(" | ") : item.alias;
+            console.log(`- [${item.system.toUpperCase()}] ${item.title} (\u5225\u540D: ${aliases})`);
+            console.log(`  \u8DEF\u5F91: ${item.relativePath} | \u968A\u4F0D: ${item.partySize}`);
+            console.log(`  \u7C21\u4ECB: ${item.synopsis}
+`);
+          }
+          console.log("\u8F09\u5165\u65B9\u5F0F: node dist/trpg-cli.js init --example <\u5225\u540D> --state ./campaign-state.json\n");
+        }
+        break;
+      }
       const example = flags.example;
       const statePath = flags.state ?? DEFAULT_STATE_PATH;
       if (example) {
@@ -2790,7 +2836,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
   node --experimental-strip-types scripts/trpg-cli.ts <command> [options]   (Node >= 22.6)
 
 Commands:
-  init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
+  init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
              --example <crimson-crypt|arkham-shadow|potent-brew|edge-of-darkness|dead-light|indigo-galleon|lost-mine|sunless-citadel|cinder-queen> [--scene <id>] --state <path>   (load bundled example campaign, optionally at another scene)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]

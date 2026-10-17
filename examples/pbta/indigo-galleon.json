@@ -1,0 +1,274 @@
+{
+  "campaignId": "campaign-indigo-galleon",
+  "title": "靛藍大帆船 (The Indigo Galleon)",
+  "system": "pbta",
+  "version": "1.0.0",
+  "synopsis": "深埋在巨型地底潮汐洞穴的岩壁中央，嵌著一艘百年前神秘沉沒的深藍色戰艦——「靛藍號」。船上藏有古代珊瑚權杖與失落的星相海圖。多方拾荒勢力（頭足類章魚人拾荒客、被詛咒的亡靈水手與岸上冒險者）在潮水暴漲前夕展開了一場生死奪寶角逐。",
+  "sessionState": {
+    "sceneId": "area-1-sea-grotto",
+    "roundNumber": 1,
+    "turnIndex": 0
+  },
+  "dangerLevel": 3,
+  "party": [
+    {
+      "id": "player-hero",
+      "name": "寇拉克·破浪者 (Korak Wavebreaker)",
+      "controlledBy": "human",
+      "race": "Human",
+      "class": "The Fighter (戰士)",
+      "level": 1,
+      "hp": {
+        "current": 20,
+        "max": 20
+      },
+      "armor": 2,
+      "pbtaMods": {
+        "str": 2,
+        "dex": 1,
+        "con": 1,
+        "int": 0,
+        "wis": -1,
+        "cha": 0
+      },
+      "actions": [
+        {
+          "id": "hack-and-slash",
+          "name": "大開大闔 (Hack and Slash)",
+          "type": "attack",
+          "range": 1,
+          "damageFormula": "1d10+2",
+          "pbtaStat": "str"
+        },
+        {
+          "id": "defend",
+          "name": "嚴陣以待 (Defend)",
+          "type": "utility",
+          "range": 1,
+          "pbtaStat": "con"
+        }
+      ],
+      "inventory": [
+        "斬馬大刀",
+        "鱗甲",
+        "冒險口糧 x3"
+      ],
+      "position": {
+        "areaId": "area-1-sea-grotto",
+        "x": 2,
+        "y": 3
+      }
+    },
+    {
+      "id": "companion-rogue",
+      "name": "梅莉·指輕 (Merry Lightfoot)",
+      "controlledBy": "ai-swarm",
+      "race": "Halfling",
+      "class": "The Thief (盜賊)",
+      "level": 1,
+      "hp": {
+        "current": 16,
+        "max": 16
+      },
+      "armor": 1,
+      "pbtaMods": {
+        "str": -1,
+        "dex": 2,
+        "con": 1,
+        "int": 1,
+        "wis": 0,
+        "cha": 1
+      },
+      "actions": [
+        {
+          "id": "backstab",
+          "name": "偷襲刺殺 (Backstab)",
+          "type": "attack",
+          "range": 1,
+          "damageFormula": "1d8+2d6",
+          "pbtaStat": "dex"
+        },
+        {
+          "id": "tricks-of-trade",
+          "name": "行話巧手 (Tricks of the Trade)",
+          "type": "utility",
+          "range": 1,
+          "pbtaStat": "dex"
+        }
+      ],
+      "inventory": [
+        "淬毒雙匕首",
+        "皮甲",
+        "盜賊開鎖工具"
+      ],
+      "position": {
+        "areaId": "area-1-sea-grotto",
+        "x": 1,
+        "y": 3
+      }
+    },
+    {
+      "id": "companion-cleric",
+      "name": "索倫·深海之聲 (Thorin Deepvoice)",
+      "controlledBy": "ai-swarm",
+      "race": "Dwarf",
+      "class": "The Cleric (牧師)",
+      "level": 1,
+      "hp": {
+        "current": 18,
+        "max": 18
+      },
+      "armor": 2,
+      "pbtaMods": {
+        "str": 1,
+        "dex": -1,
+        "con": 2,
+        "int": 0,
+        "wis": 2,
+        "cha": 0
+      },
+      "actions": [
+        {
+          "id": "turn-undead",
+          "name": "喝退亡靈 (Turn Undead)",
+          "type": "utility",
+          "range": 3,
+          "pbtaStat": "wis"
+        },
+        {
+          "id": "cure-light-wounds",
+          "name": "治療輕傷 (Cure Light Wounds)",
+          "type": "heal",
+          "range": 1,
+          "healFormula": "1d8",
+          "pbtaStat": "wis"
+        }
+      ],
+      "inventory": [
+        "戰錘",
+        "鎖子甲",
+        "浪潮聖徽"
+      ],
+      "position": {
+        "areaId": "area-1-sea-grotto",
+        "x": 2,
+        "y": 2
+      }
+    }
+  ],
+  "dungeonAreas": [
+    {
+      "areaId": "area-1-sea-grotto",
+      "name": "第一區：海蝕石窟與藤壺碎石灘 (The Barnacled Grotto)",
+      "gridSize": {
+        "width": 10,
+        "height": 8
+      },
+      "fogOfWar": "revealed",
+      "ambientDescription": "轟鳴的海浪拍擊著幽暗溶洞。岩壁上附著發光的藍色螢光海綿，遠處正中央半懸著一艘斜插在巨岩上的古代三桅大帆船「靛藍號」。數隻手持骨叉的章魚人正在翻找溺水者的骨骸。",
+      "exits": [
+        {
+          "direction": "north",
+          "targetAreaId": "area-2-indigo-deck",
+          "coord": {
+            "x": 5,
+            "y": 0
+          }
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-octo-scavenger-1",
+          "name": "章魚人拾荒兵 (Cephalopod Scavenger)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
+          "ac": 12,
+          "hp": {
+            "current": 12,
+            "max": 12
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "骨矛刺擊",
+              "bonus": 4,
+              "damage": "1d6+2"
+            }
+          ],
+          "position": {
+            "x": 6,
+            "y": 3
+          }
+        },
+        {
+          "entityId": "enemy-octo-scavenger-2",
+          "name": "章魚人投石手 (Cephalopod Slinger)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
+          "ac": 11,
+          "hp": {
+            "current": 10,
+            "max": 10
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "拋石繩",
+              "bonus": 4,
+              "damage": "1d4+1"
+            }
+          ],
+          "position": {
+            "x": 7,
+            "y": 4
+          }
+        }
+      ]
+    },
+    {
+      "areaId": "area-2-indigo-deck",
+      "name": "第二區：靛藍號傾斜主甲板 (The Tilted Main Deck)",
+      "gridSize": {
+        "width": 10,
+        "height": 8
+      },
+      "fogOfWar": "hidden",
+      "ambientDescription": "濕滑長滿海草的腐朽木甲板，大砲傾覆滑落。船長室的鍛鐵門散發著微弱的幽綠色靈光，亡靈大副的幽魂在舵輪旁徘徊。",
+      "exits": [
+        {
+          "direction": "south",
+          "targetAreaId": "area-1-sea-grotto",
+          "coord": {
+            "x": 5,
+            "y": 7
+          }
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-ghost-mate",
+          "name": "詛咒大副幽魂 (Cursed First Mate)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
+          "ac": 13,
+          "hp": {
+            "current": 16,
+            "max": 16
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "幽靈彎刀",
+              "bonus": 5,
+              "damage": "1d8+2 cold"
+            }
+          ],
+          "position": {
+            "x": 5,
+            "y": 2
+          }
+        }
+      ]
+    }
+  ]
+}

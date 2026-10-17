@@ -8,6 +8,7 @@
  *   - All commands accept --json for machine-readable output and --seed for deterministic replay.
  */
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { FactCategory, RuleSystem, WorldState } from '../src/engine/types.ts';
 import { DeterministicRNG, rollDice } from '../src/engine/dice.ts';
@@ -32,30 +33,30 @@ import { importWorldState } from '../src/engine/campaignImport.ts';
 const DEFAULT_STATE_PATH = './campaign-state.json';
 
 const EXAMPLE_ALIASES: Record<string, string> = {
-  'crimson-crypt': 'campaign-crimson-crypt.json',
-  crimson: 'campaign-crimson-crypt.json',
-  dnd5e: 'campaign-crimson-crypt.json',
-  'most-potent-brew': 'campaign-most-potent-brew.json',
-  'potent-brew': 'campaign-most-potent-brew.json',
-  brew: 'campaign-most-potent-brew.json',
-  'lost-mine': 'campaign-lost-mine.json',
-  lmop: 'campaign-lost-mine.json',
-  phandelver: 'campaign-lost-mine.json',
-  'sunless-citadel': 'campaign-sunless-citadel.json',
-  sunless: 'campaign-sunless-citadel.json',
-  'arkham-shadow': 'campaign-arkham-shadow.json',
-  arkham: 'campaign-arkham-shadow.json',
-  coc7e: 'campaign-arkham-shadow.json',
-  'edge-of-darkness': 'campaign-edge-of-darkness.json',
-  edge: 'campaign-edge-of-darkness.json',
-  'dead-light': 'campaign-dead-light.json',
-  deadlight: 'campaign-dead-light.json',
-  'indigo-galleon': 'campaign-indigo-galleon.json',
-  indigo: 'campaign-indigo-galleon.json',
-  galleon: 'campaign-indigo-galleon.json',
-  pbta: 'campaign-indigo-galleon.json',
-  'cinder-queen': 'campaign-cinder-queen.json',
-  cinder: 'campaign-cinder-queen.json',
+  'crimson-crypt': 'dnd5e/crimson-crypt.json',
+  crimson: 'dnd5e/crimson-crypt.json',
+  dnd5e: 'dnd5e/crimson-crypt.json',
+  'most-potent-brew': 'dnd5e/most-potent-brew.json',
+  'potent-brew': 'dnd5e/most-potent-brew.json',
+  brew: 'dnd5e/most-potent-brew.json',
+  'lost-mine': 'dnd5e/lost-mine.json',
+  lmop: 'dnd5e/lost-mine.json',
+  phandelver: 'dnd5e/lost-mine.json',
+  'sunless-citadel': 'dnd5e/sunless-citadel.json',
+  sunless: 'dnd5e/sunless-citadel.json',
+  'arkham-shadow': 'coc7e/arkham-shadow.json',
+  arkham: 'coc7e/arkham-shadow.json',
+  coc7e: 'coc7e/arkham-shadow.json',
+  'edge-of-darkness': 'coc7e/edge-of-darkness.json',
+  edge: 'coc7e/edge-of-darkness.json',
+  'dead-light': 'coc7e/dead-light.json',
+  deadlight: 'coc7e/dead-light.json',
+  'indigo-galleon': 'pbta/indigo-galleon.json',
+  indigo: 'pbta/indigo-galleon.json',
+  galleon: 'pbta/indigo-galleon.json',
+  pbta: 'pbta/indigo-galleon.json',
+  'cinder-queen': 'pbta/cinder-queen.json',
+  cinder: 'pbta/cinder-queen.json',
 };
 
 interface ParsedArgs {
@@ -103,10 +104,43 @@ function printOutput(data: unknown, asJson: boolean, humanText?: string): void {
 
 
 function resolveExampleFile(requested: string): string {
+  const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  // 1. Direct path check
+  const candidateDirect = path.resolve(process.cwd(), requested);
+  if (fs.existsSync(candidateDirect) && fs.statSync(candidateDirect).isFile()) {
+    return candidateDirect;
+  }
+  const candidateDirectJson = path.resolve(process.cwd(), requested.endsWith('.json') ? requested : requested + '.json');
+  if (fs.existsSync(candidateDirectJson) && fs.statSync(candidateDirectJson).isFile()) {
+    return candidateDirectJson;
+  }
+
+  // 2. Check in campaigns/ directory
+  const candidateCampaign = path.resolve(rootDir, 'campaigns', requested.endsWith('.json') ? requested : requested + '.json');
+  if (fs.existsSync(candidateCampaign) && fs.statSync(candidateCampaign).isFile()) {
+    return candidateCampaign;
+  }
+
+  // 3. Normalized alias check
   const normalized = requested.toLowerCase().replace(/\.json$/, '');
-  const fileName = EXAMPLE_ALIASES[normalized] ?? `${normalized}.json`;
-  // dist/trpg-cli.js -> <root>/dist, scripts/trpg-cli.ts -> <root>/scripts
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'examples', fileName);
+  const relativeFromAlias = EXAMPLE_ALIASES[normalized];
+  if (relativeFromAlias) {
+    const p = path.resolve(rootDir, 'examples', relativeFromAlias);
+    if (fs.existsSync(p)) return p;
+  }
+
+  // 4. Recursive search inside examples/
+  const examplesDir = path.resolve(rootDir, 'examples');
+  for (const sub of ['', 'dnd5e', 'coc7e', 'pbta']) {
+    for (const name of [, , requested]) {
+      const target = path.resolve(examplesDir, sub, name);
+      if (fs.existsSync(target) && fs.statSync(target).isFile()) {
+        return target;
+      }
+    }
+  }
+
+  throw new Error();
 }
 
 /**
@@ -166,6 +200,24 @@ function main(): void {
 
   switch (command) {
     case 'init': {
+      if (flags.list) {
+        const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+        const catalogPath = path.resolve(rootDir, 'examples', 'catalog.json');
+        const catalog = fs.existsSync(catalogPath) ? JSON.parse(fs.readFileSync(catalogPath, 'utf-8')) : [];
+        if (asJson) {
+          console.log(JSON.stringify(catalog, null, 2));
+        } else {
+          console.log('\n[TRPG-Swarm 內建經典戰役劇本庫]\n');
+          for (const item of catalog) {
+            const aliases = Array.isArray(item.alias) ? item.alias.join(' | ') : item.alias;
+            console.log(`- [${item.system.toUpperCase()}] ${item.title} (別名: ${aliases})`);
+            console.log(`  路徑: ${item.relativePath} | 隊伍: ${item.partySize}`);
+            console.log(`  簡介: ${item.synopsis}\n`);
+          }
+          console.log('載入方式: node dist/trpg-cli.js init --example <別名> --state ./campaign-state.json\n');
+        }
+        break;
+      }
       const example = flags.example as string | undefined;
       const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
 
@@ -491,7 +543,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
   node --experimental-strip-types scripts/trpg-cli.ts <command> [options]   (Node >= 22.6)
 
 Commands:
-  init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
+  init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
              --example <crimson-crypt|arkham-shadow|potent-brew|edge-of-darkness|dead-light|indigo-galleon|lost-mine|sunless-citadel|cinder-queen> [--scene <id>] --state <path>   (load bundled example campaign, optionally at another scene)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]

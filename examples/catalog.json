@@ -1,0 +1,118 @@
+[
+  {
+    "id": "campaign-crimson-crypt",
+    "title": "緋紅地窖的隕落聖物 (The Fallen Relic of the Crimson Crypt)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/crimson-crypt.json",
+    "alias": [
+      "crimson-crypt",
+      "crimson",
+      "dnd5e"
+    ],
+    "partySize": 5,
+    "synopsis": "三百年前，聖騎士團長馬爾科姆爵士帶著『晨曦聖杯』深入鴉巢修道院地底鎮壓死靈瘟疫，卻再也沒有歸來。如今，地窖深處再次滲出緋紅血霧，周遭村莊的死者紛紛從墓中爬起。冒險者小隊受晨曦教會委託踏入這座被遺忘的地下墓穴，必須突破機關迴廊、血祭禮拜堂，並在深淵祭壇擊敗墮落為不死領主的馬爾科姆爵士，奪回或淨化晨曦聖杯。"
+  },
+  {
+    "id": "campaign-most-potent-brew",
+    "title": "極效佳釀 (A Most Potent Brew)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/most-potent-brew.json",
+    "alias": [
+      "most-potent-brew",
+      "potent-brew",
+      "brew"
+    ],
+    "partySize": 5,
+    "synopsis": "石灰酒廠（Garlstone Brewery）的地窖擴建工程意外鑿穿了一座被遺忘的古代法師地下實驗室。地底湧出巨鼠與毒蟲，釀酒廠老闆格拉瓦懸賞冒險者深入地窖清剿害蟲，解開古老馬賽克謎題，並調查實驗室深處的異變根源。"
+  },
+  {
+    "id": "campaign-lost-mine",
+    "title": "凡達林的失落礦坑：三豬小道伏擊 (Lost Mine of Phandelver: Goblin Ambush)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/lost-mine.json",
+    "alias": [
+      "lost-mine",
+      "lmop",
+      "phandelver"
+    ],
+    "partySize": 4,
+    "synopsis": "冒險者護送矮人甘德倫·尋石者的補給牛車前往邊陲礦鎮凡達林。在行經三豬小道（Triboar Trail）時，前方赫然出現兩匹被黑色羽箭射殺的死馬，四周樹叢傳來粗糙刺耳的哥布林竊笑——克拉格矛（Cragmaw）部族的伏擊戰驟然爆發！"
+  },
+  {
+    "id": "campaign-sunless-citadel",
+    "title": "日光堡壘：裂谷深處的要塞 (The Sunless Citadel: Ravine Descent)",
+    "system": "dnd5e",
+    "relativePath": "dnd5e/sunless-citadel.json",
+    "alias": [
+      "sunless-citadel",
+      "sunless",
+      "citadel"
+    ],
+    "partySize": 2,
+    "synopsis": "奧克哈斯特村外的「灰燼裂谷」深處，沉降著一座遠古龍教遺落的地下城堡。村中貴族子弟在此失蹤。冒險者沿繩梯下降至永不見天日的日光要塞外庭，剛踏上崩塌的石橋，便撞見了守衛此地的石像鼠與狂暴寇博（狗頭人）巡邏隊。"
+  },
+  {
+    "id": "campaign-arkham-shadow",
+    "title": "阿卡姆碼頭的星之低語 (Star-Whispers at Arkham Docks)",
+    "system": "coc7e",
+    "relativePath": "coc7e/arkham-shadow.json",
+    "alias": [
+      "arkham-shadow",
+      "arkham",
+      "coc7e"
+    ],
+    "partySize": 5,
+    "synopsis": "1926年10月的新英格蘭深秋，密斯卡托尼克河口連日籠罩著散發腐臭魚腥味的濃霧。三天前，來自印斯茅斯方向的貨輪『塞壬號 (S.S. Siren)』在阿卡姆北側廢棄的 4 號碼頭擱淺，同日密大考古系學生亞瑟·馬什離奇失蹤，只留下一捲錄滿非人咕噥聲與海浪拍擊聲的蠟筒錄音。當朔月大潮將在今夜子時來臨，調查員團隊必須在理智徹底崩潰前，揭開碼頭倉庫、河畔旅店與水下海蝕洞中的達貢密教陰謀。"
+  },
+  {
+    "id": "campaign-edge-of-darkness",
+    "title": "黑暗邊緣 (Edge of Darkness)",
+    "system": "coc7e",
+    "relativePath": "coc7e/edge-of-darkness.json",
+    "alias": [
+      "edge-of-darkness",
+      "edge",
+      "darkness"
+    ],
+    "partySize": 4,
+    "synopsis": "三十年前，一群密斯卡托尼克大學的年輕學子在羅斯角（Ross's Corners）的一間廢棄農舍進行了魯莽的召喚儀式，將一個不可名狀的異界實體囚禁在閣樓。如今當年最後的倖存者魯珀特·梅里韋瑟病危，臨終前將裝有黃金聖甲蟲護身符、古老羊皮紙與農舍地契的鐵盒交託給調查員，哀求他們前往農舍主持驅魔儀式，徹底終結這場夢魘。"
+  },
+  {
+    "id": "campaign-dead-light",
+    "title": "死光 (Dead Light)",
+    "system": "coc7e",
+    "relativePath": "coc7e/dead-light.json",
+    "alias": [
+      "dead-light",
+      "deadlight"
+    ],
+    "partySize": 3,
+    "synopsis": "暴風驟雨的夜晚，調查員在開往阿卡姆的鄉間泥濘公路上遭遇車禍拋錨。一名滿身泥濘、精神近乎崩潰的少女艾米莉亞撞上車燈求救。不久後，一道吞噬生靈、發出刺耳白光的致命發光實體在雨幕中浮現。調查員必須撤退至附近的黑水溪加油餐館，在驚恐混亂的生還者中找出封印死光金屬匣的秘密。"
+  },
+  {
+    "id": "campaign-indigo-galleon",
+    "title": "靛藍大帆船 (The Indigo Galleon)",
+    "system": "pbta",
+    "relativePath": "pbta/indigo-galleon.json",
+    "alias": [
+      "indigo-galleon",
+      "indigo",
+      "pbta"
+    ],
+    "partySize": 3,
+    "synopsis": "深埋在巨型地底潮汐洞穴的岩壁中央，嵌著一艘百年前神秘沉沒的深藍色戰艦——「靛藍號」。船上藏有古代珊瑚權杖與失落的星相海圖。多方拾荒勢力（頭足類章魚人拾荒客、被詛咒的亡靈水手與岸上冒險者）在潮水暴漲前夕展開了一場生死奪寶角逐。"
+  },
+  {
+    "id": "campaign-cinder-queen",
+    "title": "灰燼女王的侍從 (Servants of the Cinder Queen)",
+    "system": "pbta",
+    "relativePath": "pbta/cinder-queen.json",
+    "alias": [
+      "cinder-queen",
+      "cinder",
+      "queen"
+    ],
+    "partySize": 2,
+    "synopsis": "白角山（Hvitr's Horn）頂端的古老修道院早已坍塌為焦黑廢墟。三百年來封印著深淵烈焰半神「吉爾達瑟」的火山口封印正逐漸碎裂，村民接連失蹤。狂熱的灰燼教徒正在祭壇舉行喚醒儀式，冒險者必須攀登火山、在毀滅倒數結束前阻止烈焰破世！"
+  }
+]
