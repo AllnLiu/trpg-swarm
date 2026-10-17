@@ -1,0 +1,11 @@
+# Dependencies (only needed to rebuild dist/)
+node_modules/
+
+# Runtime campaign state (player-local, regenerated via `init`)
+campaign-state.json
+state.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

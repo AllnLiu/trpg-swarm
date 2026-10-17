@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AETHER-VTT // 多代理人自主跑團戰術桌面 & 程序化音效合成器</title>
+  <style>
+    :root {
+      --bg-void: #070a12;
+      --glass-bg: rgba(15, 23, 42, 0.82);
+      --glass-border: rgba(148, 163, 184, 0.22);
+      --gold: #fbbf24;
+      --gold-dim: rgba(251, 191, 36, 0.2);
+      --cyan: #38bdf8;
+      --emerald: #4ade80;
+      --crimson: #f87171;
+      --purple: #c084fc;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-void);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Microsoft JhengHei', sans-serif;
+    }
+
+    /* 100vw x 100vh Full Viewport Tactical Canvas */
+    #vtt-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      cursor: grab;
+    }
+    #vtt-canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Top Glassmorphic Command Bar */
+    .top-command-bar {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      max-width: 96vw;
+      flex-wrap: wrap;
+    }
+
+    .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      color: var(--gold);
+      padding-right: 10px;
+      border-right: 1px solid var(--glass-border);
+      white-space: nowrap;
+    }
+
+    .rule-selector {
+      background: rgba(30, 41, 59, 0.9);
+      color: var(--text-main);
+      border: 1px solid var(--cyan);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Initiative Tracker Strip */
+    .initiative-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      border-left: 1px solid var(--glass-border);
+      border-right: 1px solid var(--glass-border);
+    }
+
+    .init-pill {
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .init-pill.active {
+      background: var(--gold-dim);
+      border-color: var(--gold);
+      color: var(--gold);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.35);
+      transform: scale(1.05);
+    }
+
+    .init-pill.enemy {
+      border-color: rgba(248, 113, 113, 0.35);
+    }
+
+    .cmd-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.16);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      border-color: var(--gold);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-color: #fef08a;
+    }
+
+    .btn-auto.running {
+      background: rgba(34, 197, 94, 0.25);
+      border-color: var(--emerald);
+      color: var(--emerald);
+    }
+
+    /* Collapsible Side Drawers */
+    .side-drawer {
+      position: fixed;
+      top: 72px;
+      bottom: 16px;
+      width: 350px;
+      z-index: 15;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .drawer-left {
+      left: 14px;
+    }
+    .drawer-left.collapsed {
+      transform: translateX(-340px);
+    }
+
+    .drawer-right {
+      right: 14px;
+      width: 390px;
+    }
+    .drawer-right.collapsed {
+      transform: translateX(380px);
+    }
+
+    .drawer-toggle {
+      position: absolute;
+      top: 14px;
+      width: 28px;
+      height: 54px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 25;
+    }
+
+    .drawer-left .drawer-toggle {
+      right: -28px;
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .drawer-right .drawer-toggle {
+      left: -28px;
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+    }
+
+    .drawer-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      color: var(--gold);
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-muted);
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--cyan);
+      color: var(--text-main);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      user-select: text;
+    }
+
+    /* Party Member Card & Softmax Distribution */
+    .party-card {
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 10px;
+      transition: border-color 0.2s;
+    }
+    .party-card.active-turn {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .char-name {
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .trait-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(148, 163, 184, 0.16);
+      color: var(--cyan);
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 8px;
+      font-size: 11px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    .stat-pill {
+      background: rgba(15, 23, 42, 0.75);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .softmax-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.18);
+    }
+
+    .util-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+    }
+    .util-label {
+      width: 68px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .util-track {
+      flex: 1;
+      height: 5px;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .util-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+    }
+
+    /* 3-Tier Memory Viewer */
+    .mem-section {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    .mem-section h4 {
+      color: var(--cyan);
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .mem-item {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      line-height: 1.4;
+    }
+    .mem-item.superseded {
+      text-decoration: line-through;
+      color: #64748b;
+    }
+
+    /* Right Drawer: Multi-Agent Theater Log */
+    .theater-msg {
+      background: rgba(30, 41, 59, 0.68);
+      border-left: 3px solid var(--cyan);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      line-height: 1.45;
+      animation: fadeIn 0.25s ease;
+    }
+    .theater-msg.dm {
+      border-left-color: var(--gold);
+      background: rgba(120, 53, 15, 0.25);
+    }
+    .theater-msg.enemy {
+      border-left-color: var(--crimson);
+      background: rgba(127, 29, 29, 0.25);
+    }
+    .theater-msg.banter {
+      border-left-color: var(--purple);
+      font-style: italic;
+    }
+
+    .msg-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--gold);
+    }
+
+    .dice-badge {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--cyan);
+    }
+    .dice-badge.crit {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .dice-badge.fumble {
+      border-color: var(--crimson);
+      color: var(--crimson);
+    }
+
+    /* Bottom Player Commander Input Box */
+    .commander-footer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      background: rgba(15, 23, 42, 0.92);
+      border-radius: 0 0 14px 14px;
+    }
+
+    .commander-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .cmd-input {
+      flex: 1;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid var(--glass-border);
+      border-radius: 7px;
+      padding: 6px 10px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+    }
+    .cmd-input:focus {
+      border-color: var(--gold);
+    }
+
+    .quick-sfx-bar {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .sfx-chip {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--glass-border);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .sfx-chip:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- 100vw x 100vh Full Viewport Tactical Canvas -->
+  <canvas id="vtt-canvas"></canvas>
+
+  <!-- Top Glassmorphic Command Bar -->
+  <header class="top-command-bar">
+    <div class="brand-badge">
+      <span>⚔️ AETHER-VTT</span>
+      <span id="round-counter" style="color: var(--cyan); font-size: 11px;">R1</span>
+    </div>
+
+    <select id="rule-system-select" class="rule-selector" title="切換三大 TRPG 規則引擎">
+      <option value="dnd5e">D&amp;D 5e SRD (d20 優勢/劣勢)</option>
+      <option value="coc7e">CoC 7e 克蘇魯 (d100 理智檢定)</option>
+      <option value="pbta">PbtA 地下城世界 (2d6 敘事推進)</option>
+    </select>
+
+    <!-- Initiative Tracker -->
+    <div id="initiative-strip" class="initiative-strip"></div>
+
+    <!-- Turn & Audio Controls -->
+    <div class="cmd-group">
+      <button id="btn-next-turn" class="btn btn-primary">▶ 下一回合</button>
+      <button id="btn-auto-play" class="btn btn-auto">🤖 AI 隊伍自動推演</button>
+      <button id="btn-reset" class="btn">↺ 重置戰役</button>
+    </div>
+
+    <div class="cmd-group">
+      <select id="bgm-select" class="rule-selector" title="程序化合成背景音軌">
+        <option value="none">🎵 BGM: 關閉</option>
+        <option value="dungeon">🎵 幽暗地城 (Dungeon)</option>
+        <option value="combat">🎵 史詩死鬥 (Combat)</option>
+        <option value="investigation">🎵 古神調查 (Investigation)</option>
+        <option value="tavern">🎵 旅店魯特琴 (Tavern)</option>
+      </select>
+      <button id="btn-mute" class="btn">🔊 音效開啟</button>
+    </div>
+  </header>
+
+  <!-- Left Collapsible Drawer: AI Party Status & 3-Tier Memory -->
+  <aside id="left-drawer" class="side-drawer drawer-left">
+    <div id="toggle-left" class="drawer-toggle" title="收合/展開隊伍與記憶抽屜">◀</div>
+    <div class="drawer-header">
+      <span class="drawer-title">🛡️ AI 夥伴狀態 &amp; 記憶庫</span>
+      <div class="tab-bar">
+        <button id="tab-party" class="tab-btn active">隊伍效用</button>
+        <button id="tab-memory" class="tab-btn">三層記憶</button>
+      </div>
+    </div>
+    <div id="left-drawer-content" class="drawer-body"></div>
+  </aside>
+
+  <!-- Right Collapsible Drawer: Multi-Agent TRPG Theater & Human Commander -->
+  <aside id="right-drawer" class="side-drawer drawer-right">
+    <div id="toggle-right" class="drawer-toggle" title="收合/展開跑團劇場抽屜">▶</div>
+    <div class="drawer-header">
+      <span class="drawer-title">🎭 多代理人 TRPG 跑團劇場</span>
+      <span id="active-rule-badge" style="font-size: 11px; color: var(--cyan);">D&amp;D 5e SRD</span>
+    </div>
+    <div id="theater-log" class="drawer-body"></div>
+    <div class="commander-footer">
+      <div class="quick-sfx-bar">
+        <span class="sfx-chip" data-sfx="dice">🎲 擲骰聲</span>
+        <span class="sfx-chip" data-sfx="slash">⚔️ 劍擊聲</span>
+        <span class="sfx-chip" data-sfx="fireball">🔥 火球轟鳴</span>
+        <span class="sfx-chip" data-sfx="heal">✨ 神聖治療</span>
+        <span class="sfx-chip" data-sfx="sanity">👁️ 理智耳鳴</span>
+      </div>
+      <div class="commander-input-row">
+        <input
+          id="commander-input"
+          type="text"
+          class="cmd-input"
+          placeholder="輸入指揮官戰術方針或自訂行動 (例: 集火邪教首領 / 撤退掩體)..."
+        />
+        <button id="btn-send-cmd" class="btn btn-primary">下達指令</button>
+        <button id="btn-manual-roll" class="btn" title="立即執行玩家手動檢定">🎲 檢定</button>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    // =========================================================================
+    // 1. ZERO-SERVER PROCEDURAL WEB AUDIO SYNTHESIZER (TrpgAudioManager)
+    // =========================================================================
+    class TrpgAudioManager {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.currentBgmMode = null;
+        this.bgmIntervalId = null;
+        this.bgmStep = 0;
+        this.masterGain = null;
+        this.bgmGain = null;
+      }
+
+      ensureContext() {
+        if (this.isMuted) return null;
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.85;
+            this.masterGain.connect(this.ctx.destination);
+
+            this.bgmGain = this.ctx.createGain();
+            this.bgmGain.gain.value = 0.16;
+            this.bgmGain.connect(this.masterGain);
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        return this.ctx;
+      }
+
+      createNoiseBuffer(ctx, durationSec) {
+        const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * durationSec));
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.isMuted) {
+          this.stopAmbientBGM();
+        }
+        return this.isMuted;
+      }
+
+      playDiceRoll(diceCount = 1) {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const clampedCount = Math.min(Math.max(diceCount, 1), 6);
+        const bounces = 5 + clampedCount * 2;
+        let timeOffset = 0;
+
+        for (let i = 0; i < bounces; i++) {
+          const progress = i / bounces;
+          const startTime = ctx.currentTime + timeOffset;
+          timeOffset += 0.026 + progress * 0.062 + Math.random() * 0.015;
+
+          const noiseDur = 0.024;
+          const noiseSource = ctx.createBufferSource();
+          noiseSource.buffer = this.createNoiseBuffer(ctx, noiseDur);
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1450 + Math.random() * 1150 - progress * 480, startTime);
+          filter.Q.setValueAtTime(6.0, startTime);
+
+          const gain = ctx.createGain();
+          const peakGain = (0.35 * (1 - progress * 0.75)) / Math.sqrt(clampedCount);
+          gain.gain.setValueAtTime(0.001, startTime);
+          gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.003);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + noiseDur);
+
+          noiseSource.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          noiseSource.start(startTime);
+          noiseSource.stop(startTime + noiseDur);
+
+          const osc = ctx.createOscillator();
+          const oscGain = ctx.createGain();
+          osc.type = 'triangle';
+          const baseFreq = 320 + Math.random() * 180 - progress * 90;
+          osc.frequency.setValueAtTime(baseFreq, startTime);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, startTime + 0.022);
+          oscGain.gain.setValueAtTime(peakGain * 0.55, startTime);
+          oscGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.022);
+
+          osc.connect(oscGain);
+          oscGain.connect(this.masterGain);
+          osc.start(startTime);
+          osc.stop(startTime + 0.024);
+        }
+      }
+
+      playCriticalSuccess() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5-E5-G5-C6
+        notes.forEach((freq, idx) => {
+          const startTime = ctx.currentTime + idx * 0.075;
+          const duration = 0.55;
+          const triOsc = ctx.createOscillator();
+          triOsc.type = 'triangle';
+          triOsc.frequency.setValueAtTime(freq, startTime);
+
+          const sineOsc = ctx.createOscillator();
+          sineOsc.type = 'sine';
+          sineOsc.frequency.setValueAtTime(freq * 2, startTime);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.001, startTime);
+          gain.gain.linearRampToValueAtTime(0.24, startTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+          const harmonicGain = ctx.createGain();
+          harmonicGain.gain.setValueAtTime(0.08, startTime);
+          harmonicGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+          triOsc.connect(gain);
+          sineOsc.connect(harmonicGain);
+          gain.connect(this.masterGain);
+          harmonicGain.connect(this.masterGain);
+
+          triOsc.start(startTime);
+          triOsc.stop(startTime + duration);
+          sineOsc.start(startTime);
+          sineOsc.stop(startTime + duration);
+        });
+      }
+
+      playCriticalFailure() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const now = ctx.currentTime;
+        const duration = 0.75;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc2.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(180, now);
+        osc1.frequency.exponentialRampToValueAtTime(55, now + duration);
+        osc2.frequency.setValueAtTime(170, now);
+        osc2.frequency.exponentialRampToValueAtTime(51.9, now + duration);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(650, now);
+        filter.frequency.exponentialRampToValueAtTime(140, now + duration);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.26, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + duration);
+        osc2.stop(now + duration);
+      }
+
+      playSwordSlash() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const now = ctx.currentTime;
+        const duration = 0.28;
+        const noise = ctx.createBufferSource();
+        noise.buffer = this.createNoiseBuffer(ctx, duration);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.setValueAtTime(3.5, now);
+        filter.frequency.setValueAtTime(3600, now);
+        filter.frequency.exponentialRampToValueAtTime(650, now + duration);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.001, now);
+        noiseGain.gain.linearRampToValueAtTime(0.38, now + 0.025);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        noise.start(now);
+        noise.stop(now + duration);
+
+        [1980, 2890, 4120].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.94, now + 0.22);
+          const mg = ctx.createGain();
+          mg.gain.setValueAtTime(0.08 / (i + 1), now);
+          mg.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+          osc.connect(mg);
+          mg.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.23);
+        });
+      }
+
+      playFireballExplosion() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const now = ctx.currentTime;
+        const duration = 1.15;
+        const noise = ctx.createBufferSource();
+        noise.buffer = this.createNoiseBuffer(ctx, duration);
+
+        const lowpass = ctx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.setValueAtTime(800, now);
+        lowpass.frequency.exponentialRampToValueAtTime(60, now + duration);
+        lowpass.Q.setValueAtTime(2.2, now);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.55, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        noise.connect(lowpass);
+        lowpass.connect(gain);
+        gain.connect(this.masterGain);
+        noise.start(now);
+        noise.stop(now + duration);
+
+        const subOsc = ctx.createOscillator();
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(130, now);
+        subOsc.frequency.exponentialRampToValueAtTime(32, now + 0.55);
+        const subGain = ctx.createGain();
+        subGain.gain.setValueAtTime(0.45, now);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+        subOsc.connect(subGain);
+        subGain.connect(this.masterGain);
+        subOsc.start(now);
+        subOsc.stop(now + 0.56);
+      }
+
+      playHealChime() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const now = ctx.currentTime;
+        [349.23, 523.25, 880.0].forEach((freq) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.14, now + 0.12);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.96);
+        });
+
+        [1567.98, 2093.0, 2637.02, 3135.96].forEach((freq, idx) => {
+          const start = now + 0.08 + idx * 0.065;
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.001, start);
+          g.gain.linearRampToValueAtTime(0.09, start + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(start);
+          osc.stop(start + 0.43);
+        });
+      }
+
+      playSanityShock() {
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+        const now = ctx.currentTime;
+        const duration = 1.45;
+        const low1 = ctx.createOscillator();
+        const low2 = ctx.createOscillator();
+        low1.type = 'sawtooth';
+        low2.type = 'triangle';
+        low1.frequency.setValueAtTime(62, now);
+        low2.frequency.setValueAtTime(68.5, now);
+
+        const lowFilter = ctx.createBiquadFilter();
+        lowFilter.type = 'lowpass';
+        lowFilter.frequency.setValueAtTime(210, now);
+
+        const lowGain = ctx.createGain();
+        lowGain.gain.setValueAtTime(0.001, now);
+        lowGain.gain.linearRampToValueAtTime(0.28, now + 0.1);
+        lowGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        low1.connect(lowFilter);
+        low2.connect(lowFilter);
+        lowFilter.connect(lowGain);
+        lowGain.connect(this.masterGain);
+        low1.start(now);
+        low2.start(now);
+        low1.stop(now + duration);
+        low2.stop(now + duration);
+
+        const tinnitus = ctx.createOscillator();
+        tinnitus.type = 'sine';
+        tinnitus.frequency.setValueAtTime(3200, now);
+        const tinGain = ctx.createGain();
+        tinGain.gain.setValueAtTime(0.001, now);
+        tinGain.gain.linearRampToValueAtTime(0.11, now + 0.04);
+        tinGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        tinnitus.connect(tinGain);
+        tinGain.connect(this.masterGain);
+        tinnitus.start(now);
+        tinnitus.stop(now + duration);
+      }
+
+      startAmbientBGM(mode) {
+        this.stopAmbientBGM();
+        if (!mode || mode === 'none') return;
+        this.currentBgmMode = mode;
+        if (this.isMuted) return;
+        const ctx = this.ensureContext();
+        if (!ctx || !this.bgmGain) return;
+
+        this.bgmStep = 0;
+        const tempoMs = { dungeon: 520, combat: 240, investigation: 460, tavern: 340 };
+        const playStep = () => {
+          if (this.isMuted || !this.currentBgmMode) return;
+          const audioCtx = this.ensureContext();
+          if (!audioCtx || !this.bgmGain) return;
+          const step = this.bgmStep++;
+
+          if (mode === 'dungeon') {
+            const scale = [110.0, 130.81, 146.83, 164.81, 196.0, 220.0];
+            this.triggerBgmNote(audioCtx, scale[step % scale.length], 'sine', 0.48, 0.25);
+            if (step % 4 === 0) this.triggerBgmNote(audioCtx, 55.0, 'triangle', 1.8, 0.35);
+          } else if (mode === 'combat') {
+            const bassPattern = [110.0, 110.0, 130.81, 110.0, 146.83, 130.81, 116.54, 98.0];
+            const freq = bassPattern[step % bassPattern.length];
+            this.triggerBgmNote(audioCtx, freq, 'sawtooth', 0.2, 0.28);
+            if (step % 2 === 0) this.triggerBgmNote(audioCtx, freq * 2, 'triangle', 0.15, 0.18);
+          } else if (mode === 'investigation') {
+            const mysteryNotes = [220.0, 261.63, 311.13, 369.99, 440.0, 311.13];
+            this.triggerBgmNote(audioCtx, mysteryNotes[step % mysteryNotes.length], 'sine', 0.42, 0.22);
+          } else if (mode === 'tavern') {
+            const luteNotes = [196.0, 246.94, 293.66, 392.0, 329.63, 293.66, 246.94, 220.0];
+            this.triggerBgmNote(audioCtx, luteNotes[step % luteNotes.length], 'triangle', 0.3, 0.3);
+          }
+        };
+        playStep();
+        this.bgmIntervalId = window.setInterval(playStep, tempoMs[mode] || 400);
+      }
+
+      triggerBgmNote(ctx, freq, type, duration, volume) {
+        if (!this.bgmGain) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(900, now);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(volume, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.bgmGain);
+        osc.start(now);
+        osc.stop(now + duration + 0.01);
+      }
+
+      stopAmbientBGM() {
+        if (this.bgmIntervalId !== null) {
+          window.clearInterval(this.bgmIntervalId);
+          this.bgmIntervalId = null;
+        }
+        this.currentBgmMode = null;
+      }
+    }
+
+    // =========================================================================
+    // 2. 100vw x 100vh FULL-VIEWPORT TACTICAL CANVAS RENDERER (VttRenderer)
+    // =========================================================================
+    class VttRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.gridCols = 16;
+        this.gridRows = 11;
+        this.cellSize = 62;
+        this.cameraX = 0;
+        this.cameraY = 0;
+        this.zoom = 1.0;
+        this.isDragging = false;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.hoveredCell = null;
+        this.terrains = new Map();
+        this.tokens = [];
+        this.activeTokenId = null;
+        this.floatingTexts = [];
+        this.particles = [];
+        this.slashArcs = [];
+        this.movePaths = [];
+        this.aoeCircles = [];
+        this.shakeIntensity = 0;
+        this.onTokenClickCallback = null;
+        this.onCellClickCallback = null;
+
+        this.handleResize();
+        this.centerCamera();
+        this.bindEvents();
+        this.startRenderLoop();
+      }
+
+      cellKey(x, y) { return `${x},${y}`; }
+
+      handleResize() {
+        const dpr = window.devicePixelRatio || 1;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        this.canvas.width = Math.floor(width * dpr);
+        this.canvas.height = Math.floor(height * dpr);
+        this.canvas.style.width = `${width}px`;
+        this.canvas.style.height = `${height}px`;
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      centerCamera() {
+        const boardW = this.gridCols * this.cellSize * this.zoom;
+        const boardH = this.gridRows * this.cellSize * this.zoom;
+        this.cameraX = Math.floor((window.innerWidth - boardW) / 2);
+        this.cameraY = Math.floor((window.innerHeight - boardH) / 2) + 20;
+      }
+
+      bindEvents() {
+        window.addEventListener('resize', () => this.handleResize());
+        this.canvas.addEventListener('mousedown', (e) => {
+          if (e.button === 0) {
+            this.isDragging = true;
+            this.dragStartX = e.clientX - this.cameraX;
+            this.dragStartY = e.clientY - this.cameraY;
+          }
+        });
+        window.addEventListener('mousemove', (e) => {
+          if (this.isDragging) {
+            this.cameraX = e.clientX - this.dragStartX;
+            this.cameraY = e.clientY - this.dragStartY;
+          }
+          const cell = this.screenToGrid(e.clientX, e.clientY);
+          this.hoveredCell =
+            cell.x >= 0 && cell.x < this.gridCols && cell.y >= 0 && cell.y < this.gridRows
+              ? cell
+              : null;
+        });
+        window.addEventListener('mouseup', (e) => {
+          if (this.isDragging) {
+            const dist = Math.hypot(
+              e.clientX - this.dragStartX - this.cameraX,
+              e.clientY - this.dragStartY - this.cameraY
+            );
+            this.isDragging = false;
+            if (dist < 5) {
+              const cell = this.screenToGrid(e.clientX, e.clientY);
+              if (cell.x >= 0 && cell.x < this.gridCols && cell.y >= 0 && cell.y < this.gridRows) {
+                const tok = this.tokens.find((t) => t.gridX === cell.x && t.gridY === cell.y && t.hp > 0);
+                if (tok && this.onTokenClickCallback) this.onTokenClickCallback(tok);
+                else if (this.onCellClickCallback) this.onCellClickCallback(cell.x, cell.y);
+              }
+            }
+          }
+        });
+        this.canvas.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const factor = e.deltaY < 0 ? 1.1 : 0.9;
+          const nextZoom = Math.min(Math.max(this.zoom * factor, 0.55), 2.1);
+          const wx = (e.clientX - this.cameraX) / this.zoom;
+          const wy = (e.clientY - this.cameraY) / this.zoom;
+          this.zoom = nextZoom;
+          this.cameraX = e.clientX - wx * this.zoom;
+          this.cameraY = e.clientY - wy * this.zoom;
+        }, { passive: false });
+      }
+
+      screenToGrid(sx, sy) {
+        const wx = (sx - this.cameraX) / this.zoom;
+        const wy = (sy - this.cameraY) / this.zoom;
+        return { x: Math.floor(wx / this.cellSize), y: Math.floor(wy / this.cellSize) };
+      }
+
+      setTerrains(list) {
+        this.terrains.clear();
+        list.forEach((t) => this.terrains.set(this.cellKey(t.x, t.y), t));
+      }
+
+      setTokens(tokens, activeId) {
+        this.tokens = tokens;
+        this.activeTokenId = activeId;
+      }
+
+      triggerScreenShake(intensity = 10) {
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+      }
+
+      addFloatingText(gridX, gridY, text, color = '#fbbf24') {
+        this.floatingTexts.push({
+          gridX,
+          gridY,
+          text,
+          color,
+          createdAt: performance.now(),
+          durationMs: 1450,
+        });
+      }
+
+      addMovePath(fromX, fromY, toX, toY, color = '#38bdf8') {
+        this.movePaths.push({
+          fromX,
+          fromY,
+          toX,
+          toY,
+          color,
+          createdAt: performance.now(),
+          durationMs: 1100,
+        });
+      }
+
+      addSwordSlashVfx(fromX, fromY, toX, toY) {
+        this.slashArcs.push({
+          fromX,
+          fromY,
+          toX,
+          toY,
+          color: '#f8fafc',
+          createdAt: performance.now(),
+          durationMs: 420,
+        });
+        const cx = (toX + 0.5) * this.cellSize;
+        const cy = (toY + 0.5) * this.cellSize;
+        for (let i = 0; i < 16; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1.5 + Math.random() * 4.5;
+          this.particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius: 2 + Math.random() * 2.5,
+            color: i % 2 === 0 ? '#fde047' : '#f97316',
+            alpha: 1,
+            decay: 0.032,
+          });
+        }
+      }
+
+      addFireballVfx(gridX, gridY, radiusCells = 2) {
+        this.aoeCircles.push({
+          gridX,
+          gridY,
+          radiusCells,
+          color: '#ef4444',
+          createdAt: performance.now(),
+          durationMs: 950,
+        });
+        const cx = (gridX + 0.5) * this.cellSize;
+        const cy = (gridY + 0.5) * this.cellSize;
+        const palette = ['#ef4444', '#f97316', '#facc15', '#fef08a'];
+        for (let i = 0; i < 48; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1.0 + Math.random() * 6.5;
+          this.particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius: 3 + Math.random() * 5,
+            color: palette[i % palette.length],
+            alpha: 1,
+            decay: 0.022 + Math.random() * 0.015,
+          });
+        }
+        this.triggerScreenShake(14);
+      }
+
+      addHealVfx(gridX, gridY) {
+        const cx = (gridX + 0.5) * this.cellSize;
+        const cy = (gridY + 0.5) * this.cellSize;
+        for (let i = 0; i < 26; i++) {
+          this.particles.push({
+            x: cx + (Math.random() - 0.5) * 42,
+            y: cy + (Math.random() - 0.5) * 32,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: -1.2 - Math.random() * 2.2,
+            radius: 2.5 + Math.random() * 3,
+            color: i % 2 === 0 ? '#4ade80' : '#a7f3d0',
+            alpha: 1,
+            decay: 0.02,
+          });
+        }
+      }
+
+      startRenderLoop() {
+        const loop = (now) => {
+          this.renderFrame(now);
+          window.requestAnimationFrame(loop);
+        };
+        window.requestAnimationFrame(loop);
+      }
+
+      renderFrame(now) {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.fillStyle = '#070a12';
+        ctx.fillRect(0, 0, width, height);
+
+        const bgGrad = ctx.createRadialGradient(
+          width * 0.5,
+          height * 0.5,
+          80,
+          width * 0.5,
+          height * 0.5,
+          Math.max(width, height) * 0.7
+        );
+        bgGrad.addColorStop(0, '#131c31');
+        bgGrad.addColorStop(1, '#060911');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        let shakeX = 0;
+        let shakeY = 0;
+        if (this.shakeIntensity > 0.2) {
+          shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+          shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+          this.shakeIntensity *= 0.88;
+        } else {
+          this.shakeIntensity = 0;
+        }
+
+        ctx.translate(this.cameraX + shakeX, this.cameraY + shakeY);
+        ctx.scale(this.zoom, this.zoom);
+
+        this.drawBoardAndTerrains(ctx, now);
+        this.drawMovePathsAndAoe(ctx, now);
+        this.drawTokens(ctx, now);
+        this.drawVfxLayer(ctx, now);
+
+        ctx.restore();
+      }
+
+      drawBoardAndTerrains(ctx, now) {
+        const totalW = this.gridCols * this.cellSize;
+        const totalH = this.gridRows * this.cellSize;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = 36;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-6, -6, totalW + 12, totalH + 12);
+        ctx.restore();
+
+        for (let y = 0; y < this.gridRows; y++) {
+          for (let x = 0; x < this.gridCols; x++) {
+            const px = x * this.cellSize;
+            const py = y * this.cellSize;
+            const terrain = this.terrains.get(this.cellKey(x, y));
+            const type = terrain ? terrain.type : 'normal';
+
+            ctx.fillStyle = (x + y) % 2 === 0 ? '#162032' : '#131b2c';
+            ctx.fillRect(px, py, this.cellSize, this.cellSize);
+
+            if (type === 'difficult_swamp') {
+              ctx.fillStyle = 'rgba(20, 83, 45, 0.58)';
+              ctx.fillRect(px + 2, py + 2, this.cellSize - 4, this.cellSize - 4);
+              ctx.fillStyle = '#4ade80';
+              ctx.font = '10px sans-serif';
+              ctx.fillText('沼澤 2x', px + 6, py + 15);
+            } else if (type === 'cover_half') {
+              ctx.fillStyle = 'rgba(51, 65, 85, 0.85)';
+              ctx.fillRect(px + 6, py + 6, this.cellSize - 12, this.cellSize - 12);
+              ctx.strokeStyle = '#94a3b8';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(px + 6, py + 6, this.cellSize - 12, this.cellSize - 12);
+              ctx.fillStyle = '#cbd5e1';
+              ctx.font = 'bold 10px sans-serif';
+              ctx.fillText('石柱 +2AC', px + 6, py + 34);
+            } else if (type === 'cover_three_quarters') {
+              ctx.fillStyle = 'rgba(30, 58, 138, 0.72)';
+              ctx.fillRect(px + 4, py + 4, this.cellSize - 8, this.cellSize - 8);
+              ctx.strokeStyle = '#60a5fa';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(px + 4, py + 4, this.cellSize - 8, this.cellSize - 8);
+              ctx.fillStyle = '#93c5fd';
+              ctx.font = 'bold 10px sans-serif';
+              ctx.fillText('祭壇 +5AC', px + 6, py + 34);
+            } else if (type === 'high_ground') {
+              ctx.fillStyle = 'rgba(120, 53, 15, 0.52)';
+              ctx.fillRect(px + 2, py + 2, this.cellSize - 4, this.cellSize - 4);
+              ctx.strokeStyle = '#f59e0b';
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(px + 3, py + 3, this.cellSize - 6, this.cellSize - 6);
+              ctx.fillStyle = '#fcd34d';
+              ctx.font = '10px sans-serif';
+              ctx.fillText('高地 ▲', px + 10, py + 16);
+            } else if (type === 'hazard_lava') {
+              const pulse = 0.45 + 0.2 * Math.sin(now * 0.005 + x + y);
+              ctx.fillStyle = `rgba(185, 28, 28, ${pulse})`;
+              ctx.fillRect(px + 2, py + 2, this.cellSize - 4, this.cellSize - 4);
+              ctx.fillStyle = '#fca5a5';
+              ctx.font = '10px sans-serif';
+              ctx.fillText('邪陣/熔岩', px + 7, py + 16);
+            }
+
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px, py, this.cellSize, this.cellSize);
+          }
+        }
+
+        if (this.hoveredCell) {
+          const hx = this.hoveredCell.x * this.cellSize;
+          const hy = this.hoveredCell.y * this.cellSize;
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(hx + 1, hy + 1, this.cellSize - 2, this.cellSize - 2);
+        }
+      }
+
+      drawMovePathsAndAoe(ctx, now) {
+        this.movePaths = this.movePaths.filter((m) => now - m.createdAt < m.durationMs);
+        for (const path of this.movePaths) {
+          const alpha = 1 - (now - path.createdAt) / path.durationMs;
+          const sx = (path.fromX + 0.5) * this.cellSize;
+          const sy = (path.fromY + 0.5) * this.cellSize;
+          const ex = (path.toX + 0.5) * this.cellSize;
+          const ey = (path.toY + 0.5) * this.cellSize;
+          ctx.save();
+          ctx.strokeStyle = path.color;
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.lineWidth = 3;
+          ctx.setLineDash([7, 5]);
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        this.aoeCircles = this.aoeCircles.filter((c) => now - c.createdAt < c.durationMs);
+        for (const circle of this.aoeCircles) {
+          const progress = (now - circle.createdAt) / circle.durationMs;
+          const alpha = 1 - progress;
+          const cx = (circle.gridX + 0.5) * this.cellSize;
+          const cy = (circle.gridY + 0.5) * this.cellSize;
+          const radiusPx = circle.radiusCells * this.cellSize;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, alpha * 0.42);
+          ctx.fillStyle = circle.color;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.strokeStyle = '#fde047';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      drawTokens(ctx, now) {
+        for (const token of this.tokens) {
+          const cx = (token.gridX + 0.5) * this.cellSize;
+          const cy = (token.gridY + 0.5) * this.cellSize;
+          const radius = this.cellSize * 0.36;
+          const isActive = token.id === this.activeTokenId;
+
+          ctx.save();
+          if (token.hp <= 0) ctx.globalAlpha = 0.32;
+
+          if (isActive && token.hp > 0) {
+            const pulseRadius = radius + 5 + Math.sin(now * 0.007) * 3.5;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, pulseRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 14;
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fillStyle = token.color;
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = token.isEnemy ? '#fca5a5' : '#e2e8f0';
+          ctx.stroke();
+
+          this.drawClassVectorIcon(ctx, token.icon, cx, cy, radius * 0.55);
+
+          const barW = this.cellSize * 0.78;
+          const barX = cx - barW / 2;
+          const hpBarY = cy - radius - 14;
+          const sanBarY = cy - radius - 7;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+          ctx.fillRect(barX, hpBarY, barW, 5);
+          const hpRatio = Math.max(0, Math.min(1, token.hp / Math.max(1, token.maxHp)));
+          ctx.fillStyle = token.isEnemy ? '#ef4444' : '#22c55e';
+          ctx.fillRect(barX, hpBarY, barW * hpRatio, 5);
+
+          if (token.maxSan > 0) {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            ctx.fillRect(barX, sanBarY, barW, 4);
+            const sanRatio = Math.max(0, Math.min(1, token.san / Math.max(1, token.maxSan)));
+            ctx.fillStyle = '#a855f7';
+            ctx.fillRect(barX, sanBarY, barW * sanRatio, 4);
+          }
+
+          const acX = cx + radius * 0.72;
+          const acY = cy + radius * 0.68;
+          ctx.beginPath();
+          ctx.arc(acX, acY, 9, 0, Math.PI * 2);
+          ctx.fillStyle = '#0f172a';
+          ctx.fill();
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${token.ac}`, acX, acY);
+
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#f8fafc';
+          ctx.shadowColor = 'rgba(0,0,0,0.9)';
+          ctx.shadowBlur = 4;
+          ctx.fillText(token.name, cx, cy + radius + 11);
+
+          ctx.restore();
+        }
+      }
+
+      drawClassVectorIcon(ctx, icon, cx, cy, size) {
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (icon === 'paladin') {
+          ctx.beginPath();
+          ctx.moveTo(cx - size * 0.6, cy - size * 0.5);
+          ctx.lineTo(cx + size * 0.6, cy - size * 0.5);
+          ctx.lineTo(cx + size * 0.5, cy + size * 0.2);
+          ctx.lineTo(cx, cy + size * 0.75);
+          ctx.lineTo(cx - size * 0.5, cy + size * 0.2);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - size * 0.8);
+          ctx.lineTo(cx, cy + size * 0.55);
+          ctx.stroke();
+        } else if (icon === 'rogue') {
+          ctx.beginPath();
+          ctx.moveTo(cx - size * 0.65, cy - size * 0.65);
+          ctx.lineTo(cx + size * 0.65, cy + size * 0.65);
+          ctx.moveTo(cx + size * 0.65, cy - size * 0.65);
+          ctx.lineTo(cx - size * 0.65, cy + size * 0.65);
+          ctx.stroke();
+        } else if (icon === 'wizard') {
+          for (let i = 0; i < 3; i++) {
+            const a = (i * Math.PI) / 3;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(a) * size * 0.75, cy + Math.sin(a) * size * 0.75);
+            ctx.lineTo(cx - Math.cos(a) * size * 0.75, cy - Math.sin(a) * size * 0.75);
+            ctx.stroke();
+          }
+        } else if (icon === 'cleric') {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - size * 0.75);
+          ctx.lineTo(cx, cy + size * 0.75);
+          ctx.moveTo(cx - size * 0.65, cy - size * 0.1);
+          ctx.lineTo(cx + size * 0.65, cy - size * 0.1);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(cx, cy - size * 0.1, size * 0.28, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(cx, cy - size * 0.1, size * 0.52, Math.PI, 0, false);
+          ctx.lineTo(cx + size * 0.35, cy + size * 0.55);
+          ctx.lineTo(cx - size * 0.35, cy + size * 0.55);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(cx - size * 0.2, cy - size * 0.05, 2, 0, Math.PI * 2);
+          ctx.arc(cx + size * 0.2, cy - size * 0.05, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      drawVfxLayer(ctx, now) {
+        this.slashArcs = this.slashArcs.filter((s) => now - s.createdAt < s.durationMs);
+        for (const slash of this.slashArcs) {
+          const progress = (now - slash.createdAt) / slash.durationMs;
+          const cx = (slash.toX + 0.5) * this.cellSize;
+          const cy = (slash.toY + 0.5) * this.cellSize;
+          const angle = Math.atan2(slash.toY - slash.fromY, slash.toX - slash.fromX);
+          ctx.save();
+          ctx.strokeStyle = slash.color;
+          ctx.globalAlpha = 1 - progress;
+          ctx.lineWidth = 4 * (1 - progress * 0.5);
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(cx, cy, this.cellSize * 0.48, angle - 1.1, angle + 1.1);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= p.decay;
+          if (p.alpha <= 0) {
+            this.particles.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        this.floatingTexts = this.floatingTexts.filter((ft) => now - ft.createdAt < ft.durationMs);
+        for (const ft of this.floatingTexts) {
+          const progress = (now - ft.createdAt) / ft.durationMs;
+          const cx = (ft.gridX + 0.5) * this.cellSize;
+          const cy = (ft.gridY + 0.2) * this.cellSize - progress * 34;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, 1 - Math.pow(progress, 2));
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = ft.color;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+          ctx.shadowBlur = 6;
+          ctx.fillText(ft.text, cx, cy);
+          ctx.restore();
+        }
+      }
+    }
+
+    // =========================================================================
+    // 3. MULTI-SYSTEM RULES, SOFTMAX AI PARTY & 3-TIER MEMORY ORCHESTRATOR
+    // =========================================================================
+    const audio = new TrpgAudioManager();
+    const canvasEl = document.getElementById('vtt-canvas');
+    const vtt = new VttRenderer(canvasEl);
+
+    let currentRuleSystem = 'dnd5e';
+    let currentRound = 1;
+    let turnIndex = 0;
+    let autoPlayTimer = null;
+    let activeLeftTab = 'party';
+    let commanderDirective = '';
+
+    const DEFAULT_TERRAINS = [
+      { x: 5, y: 3, type: 'cover_half' },
+      { x: 5, y: 7, type: 'cover_half' },
+      { x: 8, y: 5, type: 'cover_three_quarters' },
+      { x: 6, y: 4, type: 'difficult_swamp' },
+      { x: 6, y: 5, type: 'difficult_swamp' },
+      { x: 6, y: 6, type: 'difficult_swamp' },
+      { x: 3, y: 2, type: 'high_ground' },
+      { x: 3, y: 3, type: 'high_ground' },
+      { x: 11, y: 4, type: 'hazard_lava' },
+      { x: 11, y: 6, type: 'hazard_lava' },
+    ];
+
+    function createInitialActors() {
+      return [
+        {
+          id: 'paladin',
+          name: '雷恩爵士 (聖武士)',
+          role: '聖武士 Vanguard',
+          icon: 'paladin',
+          isEnemy: false,
+          gridX: 3,
+          gridY: 5,
+          hp: 44,
+          maxHp: 44,
+          san: 78,
+          maxSan: 80,
+          ac: 18,
+          spellSlots: 2,
+          color: '#2563eb',
+          trait: '無畏護衛 / 守序善良',
+          utilities: [
+            { label: '至聖斬強襲', prob: 0.48 },
+            { label: '舉盾掩護隊友', prob: 0.34 },
+            { label: '聖療術支援', prob: 0.18 },
+          ],
+        },
+        {
+          id: 'rogue',
+          name: '薇絲帕 (詭術盜賊)',
+          role: '盜賊 Infiltrator',
+          icon: 'rogue',
+          isEnemy: false,
+          gridX: 4,
+          gridY: 3,
+          hp: 31,
+          maxHp: 31,
+          san: 65,
+          maxSan: 75,
+          ac: 16,
+          spellSlots: 0,
+          color: '#0d9488',
+          trait: '毒舌機敏 / 側翼偷襲',
+          utilities: [
+            { label: '暗影側翼背刺', prob: 0.56 },
+            { label: '尋找石柱掩體', prob: 0.29 },
+            { label: '投擲淬毒飛刀', prob: 0.15 },
+          ],
+        },
+        {
+          id: 'wizard',
+          name: '奧蘿拉 (塑能法師)',
+          role: '法師 Arcanist',
+          icon: 'wizard',
+          isEnemy: false,
+          gridX: 2,
+          gridY: 7,
+          hp: 26,
+          maxHp: 26,
+          san: 58,
+          maxSan: 85,
+          ac: 13,
+          spellSlots: 3,
+          color: '#7c3aed',
+          trait: '博學狂熱 / 範圍轟炸',
+          utilities: [
+            { label: '三環火球術轟炸', prob: 0.62 },
+            { label: '奧術飛彈點殺', prob: 0.25 },
+            { label: '鑑定古神銘文', prob: 0.13 },
+          ],
+        },
+        {
+          id: 'cleric',
+          name: '賽拉菲娜 (光明牧師)',
+          role: '牧師 Oracle',
+          icon: 'cleric',
+          isEnemy: false,
+          gridX: 2,
+          gridY: 4,
+          hp: 35,
+          maxHp: 35,
+          san: 82,
+          maxSan: 85,
+          ac: 17,
+          spellSlots: 3,
+          color: '#d97706',
+          trait: '慈悲堅毅 / 團隊維持',
+          utilities: [
+            { label: '群體治癒真言', prob: 0.51 },
+            { label: '導引神力：曙光', prob: 0.31 },
+            { label: '安撫理智崩潰', prob: 0.18 },
+          ],
+        },
+        {
+          id: 'boss_cultist',
+          name: '深淵主教·瑪拉凱',
+          role: '邪教首領 Boss',
+          icon: 'monster',
+          isEnemy: true,
+          gridX: 11,
+          gridY: 5,
+          hp: 68,
+          maxHp: 68,
+          san: 0,
+          maxSan: 0,
+          ac: 15,
+          spellSlots: 4,
+          color: '#dc2626',
+          trait: '古神狂信者',
+          utilities: [],
+        },
+        {
+          id: 'aberration_1',
+          name: '星之眷族觸手衛',
+          role: '異界魔物 Elite',
+          icon: 'monster',
+          isEnemy: true,
+          gridX: 9,
+          gridY: 3,
+          hp: 42,
+          maxHp: 42,
+          san: 0,
+          maxSan: 0,
+          ac: 14,
+          spellSlots: 0,
+          color: '#991b1b',
+          trait: '精神侵蝕',
+          utilities: [],
+        },
+        {
+          id: 'aberration_2',
+          name: '深潛者狂戰士',
+          role: '異界魔物 Bruiser',
+          icon: 'monster',
+          isEnemy: true,
+          gridX: 9,
+          gridY: 7,
+          hp: 38,
+          maxHp: 38,
+          san: 0,
+          maxSan: 0,
+          ac: 13,
+          spellSlots: 0,
+          color: '#b91c1c',
+          trait: '嗜血突進',
+          utilities: [],
+        },
+      ];
+    }
+
+    let actors = createInitialActors();
+
+    // 3-Tier Memory State
+    let memoryStore = {
+      working: [
+        '當前戰術焦點：深淵祭壇中央擁有 +5 AC 四分之三掩體，深淵主教瑪拉凱正吟唱召喚儀式。',
+        '環境威脅：座標 (11,4) 與 (11,6) 存在邪神熔岩裂隙，踏入將受火焰與理智雙重傷害。',
+      ],
+      episodic: [
+        '[R1] 隊伍突入黑曜石地下聖堂，先攻檢定完成，雷恩爵士拔劍領銜衝鋒。',
+      ],
+      semantic: [
+        { fact: '深淵主教瑪拉凱的護甲為無懈可擊的 19 AC', superseded: true },
+        { fact: '【已覆寫更新】薇絲帕識破瑪拉凱護盾裂隙，真實有效護甲修正為 15 AC', superseded: false },
+        { fact: '祭壇石柱可提供 +2 AC 半掩體加值，高地階梯可賦予遠程優勢', superseded: false },
+      ],
+    };
+
+    // Softmax helper with temperature
+    function computeSoftmaxUtilities(actor) {
+      if (actor.isEnemy) return;
+      const woundedAlly = actors.find((a) => !a.isEnemy && a.hp > 0 && a.hp < a.maxHp * 0.6);
+      const rawLogits = actor.utilities.map((u, idx) => {
+        let score = (3 - idx) * 1.1 + (Math.random() - 0.5) * 0.6;
+        if (actor.id === 'cleric' && woundedAlly && idx === 0) score += 2.2;
+        if (actor.id === 'wizard' && actor.spellSlots > 0 && idx === 0) score += 1.4;
+        if (commanderDirective && u.label.includes(commanderDirective.slice(0, 2))) score += 2.5;
+        return score;
+      });
+      const maxL = Math.max(...rawLogits);
+      const exps = rawLogits.map((l) => Math.exp((l - maxL) / 0.8));
+      const sum = exps.reduce((a, b) => a + b, 0);
+      actor.utilities.forEach((u, idx) => {
+        u.prob = exps[idx] / sum;
+      });
+      actor.utilities.sort((a, b) => b.prob - a.prob);
+    }
+
+    // Rule System Dice Resolver
+    function rollRuleCheck(actor, targetAc = 15) {
+      audio.playDiceRoll(2);
+      if (currentRuleSystem === 'dnd5e') {
+        const d1 = Math.floor(Math.random() * 20) + 1;
+        const d2 = Math.floor(Math.random() * 20) + 1;
+        const best = Math.max(d1, d2);
+        const mod = 6;
+        const total = best + mod;
+        const isCrit = best === 20;
+        const isFumble = best === 1;
+        const hit = isCrit || (!isFumble && total >= targetAc);
+        return {
+          badge: `[D&D5e 2d20kh1(${d1},${d2})+${mod} = ${total} vs AC ${targetAc} -> ${
+            isCrit ? '大成功 CRIT!' : isFumble ? '大失敗 FUMBLE!' : hit ? '命中!' : '未命中'
+          }]`,
+          hit,
+          isCrit,
+          isFumble,
+        };
+      } else if (currentRuleSystem === 'coc7e') {
+        const roll = Math.floor(Math.random() * 100) + 1;
+        const skill = 70;
+        const isCrit = roll <= 5;
+        const isFumble = roll >= 96;
+        const hit = roll <= skill;
+        const tier = isCrit
+          ? '極限大成功!'
+          : roll <= Math.floor(skill / 5)
+          ? '極難成功!'
+          : roll <= Math.floor(skill / 2)
+          ? '困難成功!'
+          : hit
+          ? '常規成功'
+          : isFumble
+          ? '大失敗!'
+          : '失敗';
+        return {
+          badge: `[CoC7e 1d100 = ${roll} <= 技能 ${skill}% -> ${tier}]`,
+          hit,
+          isCrit,
+          isFumble,
+        };
+      } else {
+        // PbtA 2d6
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        const mod = 2;
+        const total = d1 + d2 + mod;
+        const isCrit = total >= 10;
+        const isFumble = total <= 6;
+        const hit = total >= 7;
+        const tier = isCrit ? '10+ 完全成功!' : hit ? '7-9 部分成功(伴隨代價)' : '6- 失敗(DM推進危機!)';
+        return {
+          badge: `[PbtA 2d6(${d1}+${d2})+${mod} = ${total} -> ${tier}]`,
+          hit,
+          isCrit,
+          isFumble,
+        };
+      }
+    }
+
+    function appendTheaterMessage({ speaker, roleClass, text, badge, isCrit, isFumble }) {
+      const log = document.getElementById('theater-log');
+      const div = document.createElement('div');
+      div.className = `theater-msg ${roleClass || ''}`;
+      let badgeHtml = '';
+      if (badge) {
+        const bClass = isCrit ? 'crit' : isFumble ? 'fumble' : '';
+        badgeHtml = `<div class="dice-badge ${bClass}">${badge}</div>`;
+      }
+      div.innerHTML = `
+        <div class="msg-header">
+          <span>${speaker}</span>
+          <span>R${currentRound}</span>
+        </div>
+        <div>${text}</div>
+        ${badgeHtml}
+      `;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function renderUI() {
+      document.getElementById('round-counter').textContent = `R${currentRound}`;
+      const activeActor = actors[turnIndex];
+      vtt.setTokens(actors, activeActor ? activeActor.id : null);
+
+      // Initiative strip
+      const strip = document.getElementById('initiative-strip');
+      strip.innerHTML = actors
+        .filter((a) => a.hp > 0)
+        .map(
+          (a) =>
+            `<span class="init-pill ${a.id === activeActor?.id ? 'active' : ''} ${
+              a.isEnemy ? 'enemy' : ''
+            }">${a.name.split(' ')[0]} (${a.hp})</span>`
+        )
+        .join('');
+
+      // Left Drawer Content
+      const container = document.getElementById('left-drawer-content');
+      if (activeLeftTab === 'party') {
+        const party = actors.filter((a) => !a.isEnemy);
+        container.innerHTML = party
+          .map((p) => {
+            const isTurn = p.id === activeActor?.id;
+            const barsHtml = p.utilities
+              .map(
+                (u) => `
+              <div class="util-row">
+                <span class="util-label">${u.label}</span>
+                <div class="util-track">
+                  <div class="util-fill" style="width: ${(u.prob * 100).toFixed(0)}%"></div>
+                </div>
+                <span style="width: 30px; text-align: right; color: var(--cyan);">${(
+                  u.prob * 100
+                ).toFixed(0)}%</span>
+              </div>
+            `
+              )
+              .join('');
+
+            return `
+            <div class="party-card ${isTurn ? 'active-turn' : ''}">
+              <div class="card-top">
+                <span class="char-name" style="color: ${p.color};">● ${p.name}</span>
+                <span class="trait-tag">${p.trait}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-pill">❤️ HP ${p.hp}/${p.maxHp}</span>
+                <span class="stat-pill">👁️ SAN ${p.san}/${p.maxSan}</span>
+                <span class="stat-pill">🛡️ AC ${p.ac}</span>
+                <span class="stat-pill">✨ 法術 ${p.spellSlots}</span>
+              </div>
+              <div class="softmax-bars">
+                <div style="font-size: 10px; color: var(--gold); margin-bottom: 2px;">Softmax 戰術決策效用分佈：</div>
+                ${barsHtml}
+              </div>
+            </div>
+          `;
+          })
+          .join('');
+      } else {
+        container.innerHTML = `
+          <div class="mem-section">
+            <h4>🧠 短期工作記憶 (Working Memory)</h4>
+            ${memoryStore.working.map((m) => `<div class="mem-item">${m}</div>`).join('')}
+          </div>
+          <div class="mem-section">
+            <h4>📜 情節事件日誌 (Episodic Log)</h4>
+            ${memoryStore.episodic
+              .slice(-6)
+              .map((m) => `<div class="mem-item">${m}</div>`)
+              .join('')}
+          </div>
+          <div class="mem-section">
+            <h4>🏛️ 語義事實庫 (Semantic Facts &amp; Supersede)</h4>
+            ${memoryStore.semantic
+              .map(
+                (s) =>
+                  `<div class="mem-item ${s.superseded ? 'superseded' : ''}">${s.fact}</div>`
+              )
+              .join('')}
+          </div>
+        `;
+      }
+    }
+
+    // Move actor step toward target coordinate
+    function stepActorToward(actor, targetX, targetY) {
+      const dx = Math.sign(targetX - actor.gridX);
+      const dy = Math.sign(targetY - actor.gridY);
+      const nextX = Math.max(0, Math.min(15, actor.gridX + dx));
+      const nextY = Math.max(0, Math.min(10, actor.gridY + dy));
+      const occupied = actors.some((a) => a.hp > 0 && a.gridX === nextX && a.gridY === nextY);
+      if (!occupied && (dx !== 0 || dy !== 0)) {
+        vtt.addMovePath(actor.gridX, actor.gridY, nextX, nextY, actor.color);
+        actor.gridX = nextX;
+        actor.gridY = nextY;
+      }
+    }
+
+    function executeNextTurn() {
+      const aliveActors = actors.filter((a) => a.hp > 0);
+      if (aliveActors.length === 0) return;
+
+      // Advance to next alive actor
+      let loops = 0;
+      while (actors[turnIndex].hp <= 0 && loops < actors.length) {
+        turnIndex = (turnIndex + 1) % actors.length;
+        loops++;
+      }
+
+      const actor = actors[turnIndex];
+      computeSoftmaxUtilities(actor);
+
+      if (!actor.isEnemy) {
+        const enemies = actors.filter((a) => a.isEnemy && a.hp > 0);
+        if (enemies.length === 0) {
+          appendTheaterMessage({
+            speaker: '👑 地下城主 (DM)',
+            roleClass: 'dm',
+            text: '所有深淵魔物已被肅清！聖堂重歸寂靜，冒險者小隊獲得史詩勝利！',
+          });
+          audio.playCriticalSuccess();
+          renderUI();
+          return;
+        }
+
+        const target = enemies[0];
+        const chosenUtility = actor.utilities[0]?.label || '戰術推進';
+
+        if (actor.id === 'wizard' && actor.spellSlots > 0) {
+          actor.spellSlots--;
+          const roll = rollRuleCheck(actor, target.ac);
+          audio.playFireballExplosion();
+          vtt.addFireballVfx(target.gridX, target.gridY, 2);
+          const dmg = roll.isCrit ? 28 : roll.hit ? 18 : 9;
+          target.hp = Math.max(0, target.hp - dmg);
+          vtt.addFloatingText(
+            target.gridX,
+            target.gridY,
+            roll.isCrit ? `-${dmg} CRIT!` : `-${dmg} FIRE`,
+            '#f97316'
+          );
+          appendTheaterMessage({
+            speaker: `🔮 ${actor.name}`,
+            text: `吟唱熾熱咒文：「星火墜落，焚盡虛妄！」向 **${target.name}** 轟出三環火球術（決策：${chosenUtility}）！`,
+            badge: roll.badge,
+            isCrit: roll.isCrit,
+            isFumble: roll.isFumble,
+          });
+          memoryStore.episodic.push(`[R${currentRound}] ${actor.name} 施放火球術對 ${target.name} 造成 ${dmg} 點火焰傷害。`);
+        } else if (actor.id === 'cleric') {
+          const wounded = actors
+            .filter((a) => !a.isEnemy && a.hp > 0)
+            .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+          audio.playHealChime();
+          vtt.addHealVfx(wounded.gridX, wounded.gridY);
+          const healAmt = 12;
+          wounded.hp = Math.min(wounded.maxHp, wounded.hp + healAmt);
+          vtt.addFloatingText(wounded.gridX, wounded.gridY, `+${healAmt} HEAL`, '#4ade80');
+          appendTheaterMessage({
+            speaker: `✨ ${actor.name}`,
+            text: `高舉聖徽綻放溫暖曙光，為 **${wounded.name}** 恢復 ${healAmt} 點生命值（決策：${chosenUtility}）！`,
+            badge: `[神聖治療 2d8+4 = +${healAmt} HP]`,
+            isCrit: true,
+          });
+        } else {
+          // Paladin or Rogue melee/ranged strike
+          const dist = Math.hypot(target.gridX - actor.gridX, target.gridY - actor.gridY);
+          if (dist > 1.6) {
+            stepActorToward(actor, target.gridX, target.gridY);
+          }
+          const roll = rollRuleCheck(actor, target.ac);
+          audio.playSwordSlash();
+          vtt.addSwordSlashVfx(actor.gridX, actor.gridY, target.gridX, target.gridY);
+          if (roll.hit) {
+            const dmg = roll.isCrit ? 22 : 13;
+            target.hp = Math.max(0, target.hp - dmg);
+            vtt.addFloatingText(
+              target.gridX,
+              target.gridY,
+              roll.isCrit ? `-${dmg} CRIT!` : `-${dmg} HIT`,
+              roll.isCrit ? '#fbbf24' : '#f87171'
+            );
+            if (roll.isCrit) audio.playCriticalSuccess();
+          } else {
+            vtt.addFloatingText(target.gridX, target.gridY, 'MISS', '#94a3b8');
+            if (roll.isFumble) audio.playCriticalFailure();
+          }
+
+          const banterLines = {
+            paladin: `「以曙光之名，退回深淵吧！」揮動聖劍斬向 **${target.name}**（決策：${chosenUtility}）。`,
+            rogue: `「嘿，大塊頭，你的後背全是破綻！」雙匕劃出冷冽寒光刺向 **${target.name}**（決策：${chosenUtility}）。`,
+          };
+          appendTheaterMessage({
+            speaker: `⚔️ ${actor.name}`,
+            text: banterLines[actor.id] || `對 ${target.name} 發起戰術攻擊！`,
+            badge: roll.badge,
+            isCrit: roll.isCrit,
+            isFumble: roll.isFumble,
+          });
+        }
+      } else {
+        // Enemy Turn: Eldritch Sanity Attack + Melee Strike
+        const partyTargets = actors.filter((a) => !a.isEnemy && a.hp > 0);
+        if (partyTargets.length > 0) {
+          const victim = partyTargets[Math.floor(Math.random() * partyTargets.length)];
+          const dist = Math.hypot(victim.gridX - actor.gridX, victim.gridY - actor.gridY);
+          if (dist > 2.2) {
+            stepActorToward(actor, victim.gridX, victim.gridY);
+          }
+
+          if (currentRuleSystem === 'coc7e' || Math.random() < 0.45) {
+            audio.playSanityShock();
+            const sanLoss = 4;
+            victim.san = Math.max(0, victim.san - sanLoss);
+            vtt.addFloatingText(victim.gridX, victim.gridY, `-${sanLoss} SAN`, '#c084fc');
+            vtt.triggerScreenShake(9);
+            appendTheaterMessage({
+              speaker: `👁️ ${actor.name}`,
+              roleClass: 'enemy',
+              text: `發出非歐幾里得維度的低語精神衝擊！**${victim.name}** 耳畔響起尖銳耳鳴，理智值下降 ${sanLoss} 點！`,
+              badge: `[理智檢定 SAN Check 失敗 -> -${sanLoss} SAN]`,
+              isFumble: true,
+            });
+          } else {
+            audio.playSwordSlash();
+            vtt.addSwordSlashVfx(actor.gridX, actor.gridY, victim.gridX, victim.gridY);
+            const dmg = 9;
+            victim.hp = Math.max(0, victim.hp - dmg);
+            vtt.addFloatingText(victim.gridX, victim.gridY, `-${dmg} HP`, '#ef4444');
+            appendTheaterMessage({
+              speaker: `👹 ${actor.name}`,
+              roleClass: 'enemy',
+              text: `揮舞深淵觸手猛擊 **${victim.name}**，造成 ${dmg} 點暗影穿刺傷害！`,
+              badge: `[敵方攻擊 1d20+6 = 19 vs AC ${victim.ac} -> 命中 -${dmg} HP]`,
+            });
+          }
+        }
+      }
+
+      // Advance pointer
+      turnIndex = (turnIndex + 1) % actors.length;
+      if (turnIndex === 0) {
+        currentRound++;
+        appendTheaterMessage({
+          speaker: '👑 地下城主 (DM)',
+          roleClass: 'dm',
+          text: `【第 ${currentRound} 回合開始】地下聖堂的火把隨古神脈動搖曳，雙方的戰術走位進入白熱化階段！`,
+        });
+      }
+
+      renderUI();
+    }
+
+    // =========================================================================
+    // 4. INITIALIZATION & UI EVENT BINDINGS
+    // =========================================================================
+    function initCampaign() {
+      currentRound = 1;
+      turnIndex = 0;
+      actors = createInitialActors();
+      vtt.setTerrains(DEFAULT_TERRAINS);
+      vtt.setTokens(actors, actors[0].id);
+      vtt.centerCamera();
+
+      const log = document.getElementById('theater-log');
+      log.innerHTML = '';
+      appendTheaterMessage({
+        speaker: '👑 地下城主 (DM)',
+        roleClass: 'dm',
+        text: '歡迎來到 **AETHER-VTT 多代理人戰術桌面**！四位具備獨立性格與 Softmax 效用決策的 AI 夥伴已就位。點擊頂部「▶ 下一回合」或啟動「🤖 AI 隊伍自動推演」，亦可點擊地圖格子指揮角色移動！',
+      });
+      appendTheaterMessage({
+        speaker: '🗡️ 薇絲帕 (詭術盜賊)',
+        roleClass: 'banter',
+        text: '「喂，雷恩，別又一個人傻傻衝進熔岩法陣裡，看到中間那座 +5 AC 的祭壇掩體了嗎？那才是專業人士的位置。」',
+      });
+      renderUI();
+    }
+
+    // Click token or grid cell on VTT Canvas
+    vtt.setOnTokenClick((token) => {
+      audio.playDiceRoll(1);
+      vtt.addFloatingText(token.gridX, token.gridY, token.name.split(' ')[0], '#38bdf8');
+    });
+
+    vtt.setOnCellClick((gx, gy) => {
+      const active = actors[turnIndex];
+      if (active && !active.isEnemy && active.hp > 0) {
+        vtt.addMovePath(active.gridX, active.gridY, gx, gy, active.color);
+        active.gridX = gx;
+        active.gridY = gy;
+        audio.playDiceRoll(1);
+        renderUI();
+      }
+    });
+
+    document.getElementById('btn-next-turn').addEventListener('click', () => {
+      executeNextTurn();
+    });
+
+    const autoBtn = document.getElementById('btn-auto-play');
+    autoBtn.addEventListener('click', () => {
+      if (autoPlayTimer) {
+        window.clearInterval(autoPlayTimer);
+        autoPlayTimer = null;
+        autoBtn.classList.remove('running');
+        autoBtn.textContent = '🤖 AI 隊伍自動推演';
+      } else {
+        executeNextTurn();
+        autoPlayTimer = window.setInterval(executeNextTurn, 2200);
+        autoBtn.classList.add('running');
+        autoBtn.textContent = '⏸ 暫停自動推演';
+      }
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      if (autoPlayTimer) {
+        window.clearInterval(autoPlayTimer);
+        autoPlayTimer = null;
+        autoBtn.classList.remove('running');
+        autoBtn.textContent = '🤖 AI 隊伍自動推演';
+      }
+      initCampaign();
+    });
+
+    document.getElementById('rule-system-select').addEventListener('change', (e) => {
+      currentRuleSystem = e.target.value;
+      const labelMap = {
+        dnd5e: 'D&D 5e SRD',
+        coc7e: 'CoC 7e 克蘇魯',
+        pbta: 'PbtA 地下城世界',
+      };
+      document.getElementById('active-rule-badge').textContent = labelMap[currentRuleSystem];
+      audio.playDiceRoll(2);
+      appendTheaterMessage({
+        speaker: '⚙️ 系統規則引擎切換',
+        roleClass: 'dm',
+        text: `已無縫切換至 **${labelMap[currentRuleSystem]}** 檢定規則！後續所有行動將採用對應骰池與成功梯度結算。`,
+      });
+    });
+
+    document.getElementById('bgm-select').addEventListener('change', (e) => {
+      const mode = e.target.value;
+      if (mode === 'none') {
+        audio.stopAmbientBGM();
+      } else {
+        audio.startAmbientBGM(mode);
+      }
+    });
+
+    const muteBtn = document.getElementById('btn-mute');
+    muteBtn.addEventListener('click', () => {
+      const muted = audio.toggleMute();
+      muteBtn.textContent = muted ? '🔇 音效靜音' : '🔊 音效開啟';
+    });
+
+    // Left/Right Drawer Toggles
+    const leftDrawer = document.getElementById('left-drawer');
+    const toggleLeft = document.getElementById('toggle-left');
+    toggleLeft.addEventListener('click', () => {
+      const collapsed = leftDrawer.classList.toggle('collapsed');
+      toggleLeft.textContent = collapsed ? '▶' : '◀';
+    });
+
+    const rightDrawer = document.getElementById('right-drawer');
+    const toggleRight = document.getElementById('toggle-right');
+    toggleRight.addEventListener('click', () => {
+      const collapsed = rightDrawer.classList.toggle('collapsed');
+      toggleRight.textContent = collapsed ? '◀' : '▶';
+    });
+
+    // Left Drawer Tabs
+    document.getElementById('tab-party').addEventListener('click', (e) => {
+      activeLeftTab = 'party';
+      e.target.classList.add('active');
+      document.getElementById('tab-memory').classList.remove('active');
+      renderUI();
+    });
+    document.getElementById('tab-memory').addEventListener('click', (e) => {
+      activeLeftTab = 'memory';
+      e.target.classList.add('active');
+      document.getElementById('tab-party').classList.remove('active');
+      renderUI();
+    });
+
+    // Quick SFX test chips
+    document.querySelectorAll('.sfx-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const type = chip.getAttribute('data-sfx');
+        if (type === 'dice') audio.playDiceRoll(3);
+        else if (type === 'slash') audio.playSwordSlash();
+        else if (type === 'fireball') audio.playFireballExplosion();
+        else if (type === 'heal') audio.playHealChime();
+        else if (type === 'sanity') audio.playSanityShock();
+      });
+    });
+
+    // Human Commander Input
+    function handleCommanderSend() {
+      const input = document.getElementById('commander-input');
+      const val = input.value.trim();
+      if (!val) return;
+      commanderDirective = val;
+      input.value = '';
+      audio.playDiceRoll(2);
+      memoryStore.working.unshift(`【人類指揮官最新方針】：${val}`);
+      actors.forEach((a) => computeSoftmaxUtilities(a));
+      appendTheaterMessage({
+        speaker: '🫡 人類指揮官 (Player Intervention)',
+        roleClass: 'banter',
+        text: `下達戰術指令：「**${val}**」—— 全體 AI 夥伴已即時重算 Softmax 效用權重並更新短期工作記憶！`,
+      });
+      renderUI();
+    }
+
+    document.getElementById('btn-send-cmd').addEventListener('click', handleCommanderSend);
+    document.getElementById('commander-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleCommanderSend();
+    });
+
+    document.getElementById('btn-manual-roll').addEventListener('click', () => {
+      const active = actors[turnIndex] || actors[0];
+      const res = rollRuleCheck(active, 15);
+      if (res.isCrit) audio.playCriticalSuccess();
+      else if (res.isFumble) audio.playCriticalFailure();
+      appendTheaterMessage({
+        speaker: '🎲 指揮官手動擲骰檢定',
+        text: `代表 **${active.name}** 執行即時能力檢定：`,
+        badge: res.badge,
+        isCrit: res.isCrit,
+        isFumble: res.isFumble,
+      });
+    });
+
+    // Boot VTT
+    initCampaign();
+  </script>
+</body>
+</html>
