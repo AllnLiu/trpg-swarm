@@ -4,8 +4,8 @@
   "system": "coc7e",
   "era": "1920s",
   "version": "1.0.0",
-  "license": "Public Domain (Based on H. P. Lovecraft, 1919)",
-  "attribution": "Adapted from 'The Statement of Randolph Carter' by H. P. Lovecraft (written 1919, published 1920), which is in the worldwide public domain. CoC 7e rules mechanics for TRPG-Swarm.",
+  "license": "Public Domain (Published 1920)",
+  "attribution": "Adapted from the short story 'The Statement of Randolph Carter' by H. P. Lovecraft (written 1919, published in The Vagrant, May 1920), which is in the worldwide public domain.",
   "synopsis": "半夜時分，倫道夫·卡特與研究神秘古籍的學者哈利·華倫深入大柏樹沼澤的一處古老廢棄墓園。他們撬開了一塊沉重的花崗岩墓石板，華倫帶著便攜式電話線獨自步入漆黑石階深處。然而電話筒那端隨即傳來了恐懼的尖叫與不可名狀之物的低語……",
   "sessionState": {
     "round": 1,
@@ -215,5 +215,7 @@
         }
       ]
     }
-  ]
+  ],
+  "author": "H. P. Lovecraft (1890–1937)",
+  "sourceUrl": "https://en.wikisource.org/wiki/The_Statement_of_Randolph_Carter"
 }

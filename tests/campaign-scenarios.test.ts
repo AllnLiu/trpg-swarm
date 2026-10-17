@@ -26,7 +26,7 @@ console.log('--- [QA Test Suite: Canonical Campaign Scenarios] ---');
 // 1. Catalog Integrity
 assert.ok(existsSync(catalogPath), 'catalog.json must exist');
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
-assert.equal(catalog.length, 5, 'All 9 scenarios must be indexed in catalog.json');
+assert.equal(catalog.length, 5, 'All 5 scenarios must be indexed in catalog.json');
 
 const systemCounts: Record<string, number> = { dnd5e: 0, coc7e: 0, pbta: 0 };
 

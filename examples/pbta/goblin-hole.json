@@ -3,8 +3,8 @@
   "title": "哥布林洞窟 (The Goblin Hole)",
   "system": "pbta",
   "version": "1.0.0",
-  "license": "CC-BY-3.0 (Based on The Goblin Hole by Marshall Miller, for Dungeon World by Sage LaTorra & Adam Koebel)",
-  "attribution": "Original framework by Marshall Miller. PbtA 2d6 engine adaptation for TRPG-Swarm.",
+  "license": "CC-BY-3.0 Unported",
+  "attribution": "The Goblin Hole © Marshall Miller (Fine Mess Games), used under CC BY 3.0. Based on Dungeon World by Sage LaTorra & Adam Koebel.",
   "synopsis": "荒野邊陲的深谷山壁間，隱藏著一座散發惡臭與刺耳譏笑的哥布林洞窟。成群的掠奪者在此盤踞，布設了粗糙卻致命的原木擺錘陷阱。冒險者小隊受邊境哨所委託潛入洞窟，深入獸欄並討伐首領『碎齒』，奪回被劫掠的物資。",
   "sessionState": {
     "round": 1,
@@ -367,5 +367,8 @@
   "partyBonds": [
     "薇拉在多年前的伏擊戰中曾救過格倫的命。",
     "奧瑞恩對洞窟內的古老地質感興趣，但也提防著獸群突襲。"
-  ]
+  ],
+  "author": "Marshall Miller",
+  "sourceUrl": "https://www.drivethrurpg.com/product/190848/20-Dungeon-Starters",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
 }

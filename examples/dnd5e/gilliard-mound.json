@@ -3,8 +3,8 @@
   "title": "吉利亞德狼塚 (The Burial Mound of Gilliard Wolfclan)",
   "system": "dnd5e",
   "version": "1.0.0",
-  "license": "CC-BY-SA-3.0 (One Page Dungeon Contest / Classic OSR)",
-  "attribution": "Based on The Burial Mound of Gilliard Wolfclan from the One Page Dungeon Contest, licensed under CC BY-SA 3.0. D&D 5e SRD 5.1 adaptation for TRPG-Swarm.",
+  "license": "CC-BY-SA-3.0 Unported",
+  "attribution": "The Burial Mound of Gilliard Wolfclan © 2013 Josh Burnett, used under CC BY-SA 3.0. D&D 5e SRD 5.1 adaptation by TRPG-Swarm. Derivative works must share-alike under CC BY-SA.",
   "synopsis": "荒野高地頂端的石塚之中，埋葬著遠古野蠻人狼族的末代酋長吉利亞德。近日盜墓者的挖掘驚醒了墓穴中的守護狼魂與骸骨狂戰士。冒險者受命深入被破壞的古塚，平息騷動並奪回被詛咒的狼首護符。",
   "sessionState": {
     "round": 1,
@@ -317,5 +317,8 @@
         }
       ]
     }
-  ]
+  ],
+  "author": "Josh Burnett (Bernie the Flumph)",
+  "sourceUrl": "https://bernietheflumph.blogspot.com/2013/04/the-burial-mound-of-gilliard-wolfclan.html",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
 }
