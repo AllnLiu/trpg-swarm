@@ -135,9 +135,7 @@ export function resolveDnD5eAttack(opts: DnD5eAttackOptions): DnD5eAttackResolut
     const baseFormula = action.damageFormula ?? '1d8+3';
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
-
-    defender.hp = Math.max(0, defender.hp - absorbTempHp(defender, totalDamage));
+    totalDamage = takeDnDDamage(defender, Math.max(1, damageRoll.total), action.damageType);
     if (defender.hp === 0) {
       if (defender.faction === 'enemy') {
         defender.isAlive = false;
@@ -227,8 +225,7 @@ export function resolveDnD5eSavingThrow(
     } else {
       damageTaken = damageRoll.total;
     }
-    damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
-    target.hp = Math.max(0, target.hp - absorbTempHp(target, damageTaken));
+    damageTaken = takeDnDDamage(target, damageTaken, action.damageType);
     if (target.hp === 0 && target.faction === 'enemy') {
       target.isAlive = false;
     }
@@ -608,6 +605,13 @@ export function absorbTempHp(target: Combatant, damage: number): number {
   return damage - soaked;
 }
 
+/** Apply D&D damage to a target: type modifiers, then temp HP, then hp. Returns the adjusted damage. */
+export function takeDnDDamage(target: Combatant, amount: number, damageType: string | undefined): number {
+  const adjusted = adjustDamageForType(amount, damageType, target);
+  target.hp = Math.max(0, target.hp - absorbTempHp(target, adjusted));
+  return adjusted;
+}
+
 /** D&D 5e damage-type modifiers: immunity -> 0, resistance -> half, vulnerability -> double (both cancel). */
 export function adjustDamageForType(damage: number, damageType: string | undefined, target: Combatant): number {
   if (!damageType) return damage;
@@ -618,6 +622,12 @@ export function adjustDamageForType(damage: number, damageType: string | undefin
   if (resisted && !vulnerable) return Math.floor(damage / 2);
   if (vulnerable && !resisted) return damage * 2;
   return damage;
+}
+
+/** An ally back above 0 HP is no longer downed: clear unconscious and dying, reset death saves. */
+export function clearDowned(c: Combatant): void {
+  c.conditions = c.conditions.filter((x) => x !== 'unconscious' && x !== 'dying');
+  c.deathSaves = { successes: 0, failures: 0, isStable: true };
 }
 
 export function resolveCoC7eOpposedCombat(

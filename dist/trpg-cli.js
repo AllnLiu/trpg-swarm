@@ -282,8 +282,7 @@ function resolveDnD5eAttack(opts) {
     const baseFormula = action.damageFormula ?? "1d8+3";
     const finalFormula = isCritical ? doubleDamageDiceInFormula(baseFormula) : baseFormula;
     damageRoll = rollDice(finalFormula, rng);
-    totalDamage = adjustDamageForType(Math.max(1, damageRoll.total), action.damageType, defender);
-    defender.hp = Math.max(0, defender.hp - absorbTempHp(defender, totalDamage));
+    totalDamage = takeDnDDamage(defender, Math.max(1, damageRoll.total), action.damageType);
     if (defender.hp === 0) {
       if (defender.faction === "enemy") {
         defender.isAlive = false;
@@ -343,8 +342,7 @@ function resolveDnD5eSavingThrow(caster, target, action, halfOnSave = true, rng 
     } else {
       damageTaken = damageRoll.total;
     }
-    damageTaken = adjustDamageForType(damageTaken, action.damageType, target);
-    target.hp = Math.max(0, target.hp - absorbTempHp(target, damageTaken));
+    damageTaken = takeDnDDamage(target, damageTaken, action.damageType);
     if (target.hp === 0 && target.faction === "enemy") {
       target.isAlive = false;
     }
@@ -572,6 +570,11 @@ function absorbTempHp(target, damage) {
   if (soaked > 0) target.tempHp = (target.tempHp ?? 0) - soaked;
   return damage - soaked;
 }
+function takeDnDDamage(target, amount, damageType) {
+  const adjusted = adjustDamageForType(amount, damageType, target);
+  target.hp = Math.max(0, target.hp - absorbTempHp(target, adjusted));
+  return adjusted;
+}
 function adjustDamageForType(damage, damageType, target) {
   if (!damageType) return damage;
   const type = damageType.toLowerCase();
@@ -581,6 +584,10 @@ function adjustDamageForType(damage, damageType, target) {
   if (resisted && !vulnerable) return Math.floor(damage / 2);
   if (vulnerable && !resisted) return damage * 2;
   return damage;
+}
+function clearDowned(c) {
+  c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
+  c.deathSaves = { successes: 0, failures: 0, isStable: true };
 }
 function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng()) {
   const atkSkill = attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
@@ -1811,18 +1818,14 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
     } else {
       const prevHp = target.hp;
       target.hp = Math.min(target.maxHp, target.hp + 1);
-      target.conditions = target.conditions.filter((c) => c !== "dying");
-      if (prevHp === 0) target.conditions = target.conditions.filter((c) => c !== "unconscious");
+      if (prevHp === 0) clearDowned(target);
       resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u6210\u529F\uFF0C\u50B7\u52E2\u7A69\u5B9A (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
     }
   } else if (action.type === "heal" && target) {
     const healRoll = rollDice(action.healFormula ?? "1d8+3", rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
-    if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== "unconscious" && c !== "dying");
-      target.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prevHp === 0 && target.hp > 0) clearDowned(target);
     resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u5C55\u3010${action.name}\u3011\u6062\u5FA9 ${target.hp - prevHp} \u9EDE HP (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
   } else if (action.type === "buff" && target) {
     if (action.appliesCondition && !target.conditions.includes(action.appliesCondition)) {
@@ -1950,10 +1953,7 @@ function adjustCombatant(state, actorId, opts) {
   if (opts.hp !== void 0) {
     const prev = c.hp;
     c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, "hp");
-    if (prev === 0 && c.hp > 0) {
-      c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
-      c.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prev === 0 && c.hp > 0) clearDowned(c);
     log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
   }
   if (opts.tempHp !== void 0) {

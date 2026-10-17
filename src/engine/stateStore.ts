@@ -15,6 +15,7 @@ import { CONDITION_TYPES } from './types.ts';
 import { DeterministicRNG, rollDice } from './dice.ts';
 import {
   COC_LEVEL_RANK,
+  clearDowned,
   resolveCoC7eCheck,
   resolveCoC7eOpposedCombat,
   resolveCoC7eSanity,
@@ -812,18 +813,14 @@ export function stepCombatTurn(
     } else {
       const prevHp = target.hp;
       target.hp = Math.min(target.maxHp, target.hp + 1);
-      target.conditions = target.conditions.filter((c) => c !== 'dying');
-      if (prevHp === 0) target.conditions = target.conditions.filter((c) => c !== 'unconscious');
+      if (prevHp === 0) clearDowned(target);
       resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 成功，傷勢穩定 (${prevHp} -> ${target.hp}/${target.maxHp})。`;
     }
   } else if (action.type === 'heal' && target) {
     const healRoll = rollDice(action.healFormula ?? '1d8+3', rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
-    if (prevHp === 0 && target.hp > 0) {
-      target.conditions = target.conditions.filter((c) => c !== 'unconscious' && c !== 'dying');
-      target.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prevHp === 0 && target.hp > 0) clearDowned(target);
     resolutionNarrative = `${actor.name} 對 ${target.name} 施展【${action.name}】恢復 ${target.hp - prevHp} 點 HP (${prevHp} -> ${target.hp}/${target.maxHp})。`;
   } else if (action.type === 'buff' && target) {
     if (action.appliesCondition && !target.conditions.includes(action.appliesCondition)) {
@@ -969,10 +966,7 @@ export function adjustCombatant(state: WorldState, actorId: string, opts: Adjust
   if (opts.hp !== undefined) {
     const prev = c.hp;
     c.hp = applyDelta(c.hp, opts.hp, 0, c.maxHp, 'hp');
-    if (prev === 0 && c.hp > 0) {
-      c.conditions = c.conditions.filter((x) => x !== 'unconscious' && x !== 'dying');
-      c.deathSaves = { successes: 0, failures: 0, isStable: true };
-    }
+    if (prev === 0 && c.hp > 0) clearDowned(c);
     log.push(`HP ${prev} -> ${c.hp}/${c.maxHp}`);
   }
   if (opts.tempHp !== undefined) {
