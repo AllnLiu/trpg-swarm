@@ -35,6 +35,8 @@ export type ConditionType =
   | 'unconscious'
   | 'dodging'
   | 'concentrating'
+  | 'major_wound'
+  | 'dying'
   | 'madness_phobia'
   | 'madness_mania'
   | 'madness_hallucination';
