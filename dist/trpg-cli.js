@@ -2009,7 +2009,7 @@ function buildMapFromArea(area) {
     }
   }
   for (const hazard of area.trapsAndHazards ?? []) {
-    for (const coord of [hazard.coord, ...hazard.coords ?? []]) {
+    for (const coord of [hazard.coord, hazard.location, ...hazard.coords ?? []]) {
       if (coord && coord.y >= 0 && coord.y < height && coord.x >= 0 && coord.x < width) {
         cells[coord.y][coord.x] = "hazard";
       }

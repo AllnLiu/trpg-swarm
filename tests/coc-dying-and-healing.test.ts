@@ -113,4 +113,8 @@ assert.throws(
   /Legal target ids: .*enemy-skeleton-guard-1/
 );
 
+// 8. Hazard cells: the books give a trap's cell as `location`.
+const gallery = campaignBookToWorldState(load('crimson-crypt'));
+assert.equal(gallery.map.cells[4][5], 'hazard', 'scythe plate cell (5,4) is painted');
+
 console.log('coc-dying-and-healing: all assertions passed');
