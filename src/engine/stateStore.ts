@@ -802,7 +802,18 @@ export function stepCombatTurn(
   const target = chosen.targetId ? state.combatants[chosen.targetId] : undefined;
   let resolutionNarrative = '';
 
-  if (action.type === 'heal' && target) {
+  if (action.type === 'heal' && target && state.ruleSystem === 'coc7e' && action.attackBonus !== undefined) {
+    const check = resolveCoC7eCheck({ skill: action.attackBonus, rng });
+    if (check.levelRank < COC_LEVEL_RANK.Regular) {
+      resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 失敗，沒能穩定傷勢。`;
+    } else {
+      const prevHp = target.hp;
+      target.hp = Math.min(target.maxHp, target.hp + 1);
+      target.conditions = target.conditions.filter((c) => c !== 'dying');
+      if (prevHp === 0) target.conditions = target.conditions.filter((c) => c !== 'unconscious');
+      resolutionNarrative = `${actor.name} 對 ${target.name} 施行【${action.name}】[${check.roll.total}/${check.level}] 成功，傷勢穩定 (${prevHp} -> ${target.hp}/${target.maxHp})。`;
+    }
+  } else if (action.type === 'heal' && target) {
     const healRoll = rollDice(action.healFormula ?? '1d8+3', rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));

@@ -293,6 +293,22 @@ export function campaignBookToWorldState(book: CampaignBook, seed = 42): WorldSt
           skills[action.cocSkillName] = action.attackBonus;
         }
       }
+      // First Aid / Medicine stabilise a dying investigator (references/coc7e-rules.md). The rules
+      // doc gives no heal amount, so the minimum the heal step applies (1 HP) is used.
+      for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
+        const kind = /first aid|急救/i.test(skillName) ? 'first_aid' : /medicine|醫學/i.test(skillName) ? 'medicine' : undefined;
+        if (kind && !actions.some((a) => a.id === kind)) {
+          actions.push({
+            id: kind,
+            name: skillName,
+            type: 'heal',
+            range: 1,
+            healFormula: '1',
+            cocSkillName: skillName,
+            attackBonus: percentage,
+          });
+        }
+      }
       return baseCombatant({
         id: member.id,
         name: member.name,

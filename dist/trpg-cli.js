@@ -1773,7 +1773,18 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
   }
   const target = chosen.targetId ? state.combatants[chosen.targetId] : void 0;
   let resolutionNarrative = "";
-  if (action.type === "heal" && target) {
+  if (action.type === "heal" && target && state.ruleSystem === "coc7e" && action.attackBonus !== void 0) {
+    const check = resolveCoC7eCheck({ skill: action.attackBonus, rng });
+    if (check.levelRank < COC_LEVEL_RANK.Regular) {
+      resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u5931\u6557\uFF0C\u6C92\u80FD\u7A69\u5B9A\u50B7\u52E2\u3002`;
+    } else {
+      const prevHp = target.hp;
+      target.hp = Math.min(target.maxHp, target.hp + 1);
+      target.conditions = target.conditions.filter((c) => c !== "dying");
+      if (prevHp === 0) target.conditions = target.conditions.filter((c) => c !== "unconscious");
+      resolutionNarrative = `${actor.name} \u5C0D ${target.name} \u65BD\u884C\u3010${action.name}\u3011[${check.roll.total}/${check.level}] \u6210\u529F\uFF0C\u50B7\u52E2\u7A69\u5B9A (${prevHp} -> ${target.hp}/${target.maxHp})\u3002`;
+    }
+  } else if (action.type === "heal" && target) {
     const healRoll = rollDice(action.healFormula ?? "1d8+3", rng);
     const prevHp = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + Math.max(1, healRoll.total));
@@ -2065,6 +2076,20 @@ function campaignBookToWorldState(book, seed = 42) {
       for (const action of actions2) {
         if (action.cocSkillName && action.attackBonus !== void 0) {
           skills[action.cocSkillName] = action.attackBonus;
+        }
+      }
+      for (const [skillName, percentage] of Object.entries(member.skills ?? {})) {
+        const kind = /first aid|急救/i.test(skillName) ? "first_aid" : /medicine|醫學/i.test(skillName) ? "medicine" : void 0;
+        if (kind && !actions2.some((a) => a.id === kind)) {
+          actions2.push({
+            id: kind,
+            name: skillName,
+            type: "heal",
+            range: 1,
+            healFormula: "1",
+            cocSkillName: skillName,
+            attackBonus: percentage
+          });
         }
       }
       return baseCombatant({

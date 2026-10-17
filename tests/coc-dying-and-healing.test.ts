@@ -79,4 +79,19 @@ assert.ok(boss.initiativeOrder.includes('enemy-honor-guard-skeleton-2'));
 assert.equal(Object.keys(boss.reserve ?? {}).length, 0);
 assert.equal(boss.villainActions?.filter((v) => v.fired).length, 1, 'round-2 action not fired yet');
 
+// 5. CoC First Aid: the healer gets a heal action; a failed roll changes nothing, a success stabilises.
+const aid = campaignBookToWorldState(load('arkham-shadow'));
+const medic = aid.combatants['trpg-companion-healer'];
+const firstAid = medic.actions.find((a) => a.id === 'first_aid');
+assert.ok(firstAid && firstAid.type === 'heal', 'first aid heal action');
+const downed = aid.combatants['trpg-companion-vanguard'];
+downed.hp = 0;
+downed.conditions.push('unconscious', 'dying');
+firstAid.attackBonus = 0;
+stepCombatTurn(aid, 'trpg-companion-healer', 0.65, 'first_aid');
+assert.ok(downed.conditions.includes('dying'), 'failed first aid leaves the investigator dying');
+firstAid.attackBonus = 100;
+stepCombatTurn(aid, 'trpg-companion-healer', 0.65, 'first_aid');
+assert.ok(!downed.conditions.includes('dying') && downed.hp === 1, 'successful first aid stabilises');
+
 console.log('coc-dying-and-healing: all assertions passed');
