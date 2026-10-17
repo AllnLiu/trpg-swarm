@@ -508,65 +508,6 @@
           }
         }
       ],
-      "enemies": [
-        {
-          "id": "rat-1",
-          "name": "巨鼠 (Giant Rat Alpha)",
-          "ac": 12,
-          "hp": 7,
-          "maxHp": 7,
-          "type": "beast",
-          "pos": {
-            "x": 6,
-            "y": 3
-          },
-          "attacks": [
-            {
-              "name": "撕咬",
-              "bonus": 4,
-              "damage": "1d4+2"
-            }
-          ]
-        },
-        {
-          "id": "rat-2",
-          "name": "巨鼠 (Giant Rat Beta)",
-          "ac": 12,
-          "hp": 7,
-          "maxHp": 7,
-          "type": "beast",
-          "pos": {
-            "x": 7,
-            "y": 4
-          },
-          "attacks": [
-            {
-              "name": "撕咬",
-              "bonus": 4,
-              "damage": "1d4+2"
-            }
-          ]
-        },
-        {
-          "id": "rat-3",
-          "name": "巨鼠 (Giant Rat Gamma)",
-          "ac": 12,
-          "hp": 7,
-          "maxHp": 7,
-          "type": "beast",
-          "pos": {
-            "x": 8,
-            "y": 3
-          },
-          "attacks": [
-            {
-              "name": "撕咬",
-              "bonus": 4,
-              "damage": "1d4+2"
-            }
-          ]
-        }
-      ],
       "interactiveObjects": [
         {
           "name": "打翻的麥酒桶",
@@ -583,6 +524,77 @@
             "y": 1
           },
           "interaction": "可通過 DC 10 Athletics 穿越進入馬賽克大廳"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-rat-1",
+          "name": "巨鼠 (Giant Rat Alpha)",
+          "monsterType": "beast",
+          "status": "active",
+          "ac": 12,
+          "hp": {
+            "current": 7,
+            "max": 7
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "撕咬",
+              "bonus": 4,
+              "damage": "1d4+2"
+            }
+          ],
+          "position": {
+            "x": 6,
+            "y": 3
+          }
+        },
+        {
+          "entityId": "enemy-rat-2",
+          "name": "巨鼠 (Giant Rat Beta)",
+          "monsterType": "beast",
+          "status": "active",
+          "ac": 12,
+          "hp": {
+            "current": 7,
+            "max": 7
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "撕咬",
+              "bonus": 4,
+              "damage": "1d4+2"
+            }
+          ],
+          "position": {
+            "x": 7,
+            "y": 4
+          }
+        },
+        {
+          "entityId": "enemy-rat-3",
+          "name": "巨鼠 (Giant Rat Gamma)",
+          "monsterType": "beast",
+          "status": "active",
+          "ac": 12,
+          "hp": {
+            "current": 7,
+            "max": 7
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "撕咬",
+              "bonus": 4,
+              "damage": "1d4+2"
+            }
+          ],
+          "position": {
+            "x": 8,
+            "y": 3
+          }
         }
       ]
     },
@@ -613,27 +625,6 @@
           }
         }
       ],
-      "enemies": [
-        {
-          "id": "spider-1",
-          "name": "洞穴巨蛛 (Giant Spider)",
-          "ac": 14,
-          "hp": 18,
-          "maxHp": 18,
-          "type": "beast",
-          "pos": {
-            "x": 5,
-            "y": 3
-          },
-          "attacks": [
-            {
-              "name": "毒牙刺擊",
-              "bonus": 5,
-              "damage": "1d8+3"
-            }
-          ]
-        }
-      ],
       "interactiveObjects": [
         {
           "name": "元素踏板",
@@ -642,6 +633,31 @@
             "y": 4
           },
           "interaction": "依火->水->土->風順序踩踏可解除石門陷阱"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-spider-1",
+          "name": "洞穴巨蛛 (Giant Spider)",
+          "monsterType": "beast",
+          "status": "active",
+          "ac": 14,
+          "hp": {
+            "current": 18,
+            "max": 18
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "毒牙刺擊",
+              "bonus": 5,
+              "damage": "1d8+3"
+            }
+          ],
+          "position": {
+            "x": 5,
+            "y": 3
+          }
         }
       ]
     },
@@ -664,27 +680,6 @@
           }
         }
       ],
-      "enemies": [
-        {
-          "id": "boss-fire-rat",
-          "name": "煉獄異變巨鼠 (Infernal Rat Abomination)",
-          "ac": 13,
-          "hp": 24,
-          "maxHp": 24,
-          "type": "monstrosity",
-          "pos": {
-            "x": 6,
-            "y": 2
-          },
-          "attacks": [
-            {
-              "name": "烈焰撕咬",
-              "bonus": 5,
-              "damage": "1d6+3 fire"
-            }
-          ]
-        }
-      ],
       "interactiveObjects": [
         {
           "name": "鍊金工作台",
@@ -693,6 +688,31 @@
             "y": 1
           },
           "interaction": "可搜尋到極效治療藥水配方與 50 金幣"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-boss-fire-rat",
+          "name": "煉獄異變巨鼠 (Infernal Rat Abomination)",
+          "monsterType": "monstrosity",
+          "status": "active",
+          "ac": 13,
+          "hp": {
+            "current": 24,
+            "max": 24
+          },
+          "speed": 30,
+          "attacks": [
+            {
+              "name": "烈焰撕咬",
+              "bonus": 5,
+              "damage": "1d6+3 fire"
+            }
+          ],
+          "position": {
+            "x": 6,
+            "y": 2
+          }
         }
       ]
     }

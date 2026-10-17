@@ -176,42 +176,52 @@
           }
         }
       ],
-      "enemies": [
+      "encounters": [
         {
-          "id": "octo-scavenger-1",
+          "entityId": "enemy-octo-scavenger-1",
           "name": "章魚人拾荒兵 (Cephalopod Scavenger)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
           "ac": 12,
-          "hp": 12,
-          "maxHp": 12,
-          "pos": {
-            "x": 6,
-            "y": 3
+          "hp": {
+            "current": 12,
+            "max": 12
           },
+          "speed": 30,
           "attacks": [
             {
               "name": "骨矛刺擊",
               "bonus": 4,
               "damage": "1d6+2"
             }
-          ]
+          ],
+          "position": {
+            "x": 6,
+            "y": 3
+          }
         },
         {
-          "id": "octo-scavenger-2",
+          "entityId": "enemy-octo-scavenger-2",
           "name": "章魚人投石手 (Cephalopod Slinger)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
           "ac": 11,
-          "hp": 10,
-          "maxHp": 10,
-          "pos": {
-            "x": 7,
-            "y": 4
+          "hp": {
+            "current": 10,
+            "max": 10
           },
+          "speed": 30,
           "attacks": [
             {
               "name": "拋石繩",
               "bonus": 4,
               "damage": "1d4+1"
             }
-          ]
+          ],
+          "position": {
+            "x": 7,
+            "y": 4
+          }
         }
       ]
     },
@@ -234,24 +244,29 @@
           }
         }
       ],
-      "enemies": [
+      "encounters": [
         {
-          "id": "ghost-mate",
+          "entityId": "enemy-ghost-mate",
           "name": "詛咒大副幽魂 (Cursed First Mate)",
+          "monsterType": "Cephalopod / Undead",
+          "status": "active",
           "ac": 13,
-          "hp": 16,
-          "maxHp": 16,
-          "pos": {
-            "x": 5,
-            "y": 2
+          "hp": {
+            "current": 16,
+            "max": 16
           },
+          "speed": 30,
           "attacks": [
             {
               "name": "幽靈彎刀",
               "bonus": 5,
               "damage": "1d8+2 cold"
             }
-          ]
+          ],
+          "position": {
+            "x": 5,
+            "y": 2
+          }
         }
       ]
     }

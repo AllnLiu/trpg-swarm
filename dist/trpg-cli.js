@@ -2399,6 +2399,11 @@ var EXAMPLE_ALIASES = {
   "most-potent-brew": "campaign-most-potent-brew.json",
   "potent-brew": "campaign-most-potent-brew.json",
   brew: "campaign-most-potent-brew.json",
+  "lost-mine": "campaign-lost-mine.json",
+  lmop: "campaign-lost-mine.json",
+  phandelver: "campaign-lost-mine.json",
+  "sunless-citadel": "campaign-sunless-citadel.json",
+  sunless: "campaign-sunless-citadel.json",
   "arkham-shadow": "campaign-arkham-shadow.json",
   arkham: "campaign-arkham-shadow.json",
   coc7e: "campaign-arkham-shadow.json",
@@ -2409,7 +2414,9 @@ var EXAMPLE_ALIASES = {
   "indigo-galleon": "campaign-indigo-galleon.json",
   indigo: "campaign-indigo-galleon.json",
   galleon: "campaign-indigo-galleon.json",
-  pbta: "campaign-indigo-galleon.json"
+  pbta: "campaign-indigo-galleon.json",
+  "cinder-queen": "campaign-cinder-queen.json",
+  cinder: "campaign-cinder-queen.json"
 };
 function parseCliArgs(argv) {
   const args = argv.slice(2);
@@ -2784,7 +2791,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <crimson-crypt|arkham-shadow> [--scene <sceneId|areaId>] --state <path>   (load bundled example campaign, optionally at another scene)
+             --example <crimson-crypt|arkham-shadow|potent-brew|edge-of-darkness|dead-light|indigo-galleon|lost-mine|sunless-citadel|cinder-queen> [--scene <id>] --state <path>   (load bundled example campaign, optionally at another scene)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]

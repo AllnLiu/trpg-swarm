@@ -371,24 +371,6 @@
         "clue-6-summoning-seal",
         "clue-7-deady-journal"
       ],
-      "enemies": [
-        {
-          "id": "lurker-attic",
-          "name": "閣樓潛伏之物 (The Lurker in the Attic)",
-          "hp": 20,
-          "maxHp": 20,
-          "attackFormula": "1d8",
-          "sanLoss": "1/1d8"
-        },
-        {
-          "id": "zombie-squatter",
-          "name": "被操縱的林地走肉 (Possessed Corpse)",
-          "hp": 12,
-          "maxHp": 12,
-          "attackFormula": "1d6",
-          "sanLoss": "1/1d4"
-        }
-      ],
       "interactiveObjects": [
         {
           "name": "粉筆與鹽巴保護圈",
@@ -397,6 +379,56 @@
         {
           "name": "農舍木板窗",
           "interaction": "老兵可用木板與鐵釘加固窗戶防禦衝撞"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-lurker-attic",
+          "name": "閣樓潛伏之物 (The Lurker in the Attic)",
+          "entityType": "Mythos Entity",
+          "status": "active",
+          "hp": {
+            "current": 20,
+            "max": 20
+          },
+          "dex": 50,
+          "mov": 8,
+          "db": "+1d4",
+          "build": 1,
+          "armor": 1,
+          "sanityLoss": "1/1d8",
+          "attacks": [
+            {
+              "name": "異界衝擊",
+              "skill": "Fighting: Brawl",
+              "percentage": 60,
+              "damage": "1d8"
+            }
+          ]
+        },
+        {
+          "entityId": "enemy-zombie-squatter",
+          "name": "被操縱的林地走肉 (Possessed Corpse)",
+          "entityType": "Mythos Entity",
+          "status": "active",
+          "hp": {
+            "current": 12,
+            "max": 12
+          },
+          "dex": 50,
+          "mov": 8,
+          "db": "+1d4",
+          "build": 1,
+          "armor": 1,
+          "sanityLoss": "1/1d4",
+          "attacks": [
+            {
+              "name": "異界衝擊",
+              "skill": "Fighting: Brawl",
+              "percentage": 60,
+              "damage": "1d6"
+            }
+          ]
         }
       ]
     }

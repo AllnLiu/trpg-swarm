@@ -256,16 +256,6 @@
         "clue-3-cut-phone-line",
         "clue-4-generator-hum"
       ],
-      "enemies": [
-        {
-          "id": "dead-light-spawn",
-          "name": "死光掠食者 (The Dead Light)",
-          "hp": 30,
-          "maxHp": 30,
-          "attackFormula": "2d6 (Life Drain)",
-          "sanLoss": "1d3/1d10"
-        }
-      ],
       "interactiveObjects": [
         {
           "name": "柴油發電機",
@@ -274,6 +264,32 @@
         {
           "name": "金屬封印匣",
           "interaction": "神秘學家唸出咒文可將死光吸入匣中永久收容"
+        }
+      ],
+      "encounters": [
+        {
+          "entityId": "enemy-dead-light-spawn",
+          "name": "死光掠食者 (The Dead Light)",
+          "entityType": "Luminous Predator",
+          "status": "active",
+          "hp": {
+            "current": 30,
+            "max": 30
+          },
+          "dex": 70,
+          "mov": 10,
+          "db": "+0",
+          "build": 0,
+          "armor": 2,
+          "sanityLoss": "1d3/1d10",
+          "attacks": [
+            {
+              "name": "生命吸取 (Life Drain)",
+              "skill": "Fighting: Brawl",
+              "percentage": 70,
+              "damage": "2d6 (Life Drain)"
+            }
+          ]
         }
       ]
     }
