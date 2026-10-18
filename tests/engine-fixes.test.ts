@@ -11,7 +11,6 @@ import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
 import { resolveCoC7eOpposedCombat, absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { DeterministicRNG } from '../src/engine/dice.ts';
 import { resolvePbtALastBreath } from '../src/engine/pbtaLastBreath.ts';
-import { absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
 import { existsSync } from 'node:fs';
@@ -199,7 +198,9 @@ assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability')
   assert.ok(attackerWins() <= 20, "a 0% 'Fighting: Brawl' is used, not a default");
   a.stats.skills = { 'Fighting: Brawl': 99 };
   assert.ok(attackerWins(0) <= 20, 'an explicit weapon skill overrides the sheet');
-// 10. PbtA Last Breath is a flat 2d6 (no modifier): 10+ cheats death, 7-9 bargains, 6- dies.
+}
+
+// 12. PbtA Last Breath is a flat 2d6 (no modifier): 10+ cheats death, 7-9 bargains, 6- dies.
 {
   const seen = new Set<string>();
   for (let seed = 1; seed <= 300; seed++) {
