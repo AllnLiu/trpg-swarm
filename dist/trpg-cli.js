@@ -2391,6 +2391,40 @@ function importWorldState(filePath, seed = 42, sceneOverride) {
   return campaignBookToWorldState(raw, seed, sceneOverride);
 }
 
+// src/engine/sceneCarry.ts
+function carryPartyIntoScene(previous, next) {
+  if (previous.ruleSystem !== next.ruleSystem) {
+    throw new Error(`--carry: rule system differs (${previous.ruleSystem} vs ${next.ruleSystem}).`);
+  }
+  const oldIds = Object.values(previous.combatants).filter((c) => c.faction === "party").map((c) => c.id);
+  const newIds = Object.values(next.combatants).filter((c) => c.faction === "party").map((c) => c.id);
+  const missing = newIds.filter((id) => !oldIds.includes(id));
+  const extra = oldIds.filter((id) => !newIds.includes(id));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `--carry: party differs between the save and the scene (not in save: ${missing.join(", ") || "-"}; not in scene: ${extra.join(", ") || "-"}).`
+    );
+  }
+  const warnings = [];
+  for (const id of newIds) {
+    const old = previous.combatants[id];
+    next.combatants[id] = { ...structuredClone(old), position: next.combatants[id].position };
+    if (old.conditions.includes("dying")) warnings.push(`${old.name} is still dying; the condition carries over.`);
+  }
+  next.initiativeOrder = next.initiativeOrder.filter((id) => next.combatants[id].isAlive);
+  next.rngSeed = previous.rngSeed;
+  next.episodicLog = previous.episodicLog;
+  next.workingMemory = previous.workingMemory;
+  next.semanticFacts = previous.semanticFacts;
+  recordEpisodicEvent(next, {
+    actorId: "system",
+    actorName: "System",
+    actionType: "scene-transition",
+    narrativeSummary: `\u968A\u4F0D\u9032\u5165\u5834\u666F\uFF1A${next.sceneName}`
+  });
+  return warnings;
+}
+
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
@@ -2540,7 +2574,9 @@ function main() {
       if (example) {
         const examplePath = resolveExampleFile(String(example));
         const state2 = importWorldState(examplePath, seed ?? 42, flags.scene);
+        const carryWarnings = flags.carry ? carryPartyIntoScene(loadWorldState(String(flags.carry)), state2) : [];
         saveWorldState(statePath, state2);
+        for (const w of carryWarnings) console.error(`[TRPG-CLI Warning] ${w}`);
         const summaryObj2 = {
           status: "initialized",
           fromExample: path3.basename(examplePath),
@@ -2829,7 +2865,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
+             --example <alias|path> [--scene <id>] [--carry <prev-state>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]

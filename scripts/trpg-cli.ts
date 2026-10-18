@@ -29,6 +29,7 @@ import {
   upsertSemanticFact,
 } from '../src/engine/stateStore.ts';
 import { importWorldState } from '../src/engine/campaignImport.ts';
+import { carryPartyIntoScene } from '../src/engine/sceneCarry.ts';
 
 const DEFAULT_STATE_PATH = './campaign-state.json';
 
@@ -217,7 +218,11 @@ function main(): void {
       if (example) {
         const examplePath = resolveExampleFile(String(example));
         const state = importWorldState(examplePath, seed ?? 42, flags.scene as string | undefined);
+        const carryWarnings = flags.carry
+          ? carryPartyIntoScene(loadWorldState(String(flags.carry)), state)
+          : [];
         saveWorldState(statePath, state);
+        for (const w of carryWarnings) console.error(`[TRPG-CLI Warning] ${w}`);
         const summaryObj = {
           status: 'initialized',
           fromExample: path.basename(examplePath),
@@ -537,7 +542,7 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
+             --example <alias|path> [--scene <id>] [--carry <prev-state>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
