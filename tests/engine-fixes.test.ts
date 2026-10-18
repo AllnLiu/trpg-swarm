@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
-import { absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
+import { resolveCoC7eOpposedCombat, absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
 import { existsSync } from 'node:fs';
@@ -177,5 +177,25 @@ for (let i = 0; i < 20 && faller.hp > 0; i++) {
 }
 assert.equal(faller.hp, 0);
 assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability');
+
+// 10. Opposed combat reads the book's 'Fighting: Brawl' key and the weapon's own skill, not a hidden default.
+// A roll of 01 always succeeds, so count wins over many trials: a 0% skill wins ~1%, the old 60% default ~60%.
+{
+  const world = campaignBookToWorldState(load('arkham-shadow'), 3);
+  const [a, d] = Object.values(world.combatants).filter((c) => c.faction === 'party');
+  d.stats.skills = { Dodge: 0 };
+  const attackerWins = (weaponSkill?: number) => {
+    let wins = 0;
+    for (let i = 0; i < 200; i++) {
+      d.hp = d.maxHp;
+      wins += resolveCoC7eOpposedCombat(a, d, 'dodge', '1d6', true, undefined, weaponSkill).winner === 'attacker' ? 1 : 0;
+    }
+    return wins;
+  };
+  a.stats.skills = { 'Fighting: Brawl': 0 };
+  assert.ok(attackerWins() <= 20, "a 0% 'Fighting: Brawl' is used, not a default");
+  a.stats.skills = { 'Fighting: Brawl': 99 };
+  assert.ok(attackerWins(0) <= 20, 'an explicit weapon skill overrides the sheet');
+}
 
 console.log('engine-fixes: all assertions passed');

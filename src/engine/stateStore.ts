@@ -848,7 +848,8 @@ export function stepCombatTurn(
       'dodge',
       action.damageFormula ?? '1d6+1',
       true,
-      rng
+      rng,
+      action.attackBonus
     );
     let sanNarrative = '';
     if (actor.faction === 'enemy' && target.faction === 'party') {
