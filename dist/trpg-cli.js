@@ -2418,6 +2418,40 @@ function resolvePbtALastBreath(rng = getGlobalRng()) {
   };
 }
 
+// src/engine/sceneCarry.ts
+function carryPartyIntoScene(previous, next) {
+  if (previous.ruleSystem !== next.ruleSystem) {
+    throw new Error(`--carry: rule system differs (${previous.ruleSystem} vs ${next.ruleSystem}).`);
+  }
+  const oldIds = Object.values(previous.combatants).filter((c) => c.faction === "party").map((c) => c.id);
+  const newIds = Object.values(next.combatants).filter((c) => c.faction === "party").map((c) => c.id);
+  const missing = newIds.filter((id) => !oldIds.includes(id));
+  const extra = oldIds.filter((id) => !newIds.includes(id));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `--carry: party differs between the save and the scene (not in save: ${missing.join(", ") || "-"}; not in scene: ${extra.join(", ") || "-"}).`
+    );
+  }
+  const warnings = [];
+  for (const id of newIds) {
+    const old = previous.combatants[id];
+    next.combatants[id] = { ...structuredClone(old), position: next.combatants[id].position };
+    if (old.conditions.includes("dying")) warnings.push(`${old.name} is still dying; the condition carries over.`);
+  }
+  next.initiativeOrder = next.initiativeOrder.filter((id) => next.combatants[id].isAlive);
+  next.rngSeed = previous.rngSeed;
+  next.episodicLog = previous.episodicLog;
+  next.workingMemory = previous.workingMemory;
+  next.semanticFacts = previous.semanticFacts;
+  recordEpisodicEvent(next, {
+    actorId: "system",
+    actorName: "System",
+    actionType: "scene-transition",
+    narrativeSummary: `\u968A\u4F0D\u9032\u5165\u5834\u666F\uFF1A${next.sceneName}`
+  });
+  return warnings;
+}
+
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
@@ -2591,7 +2625,9 @@ function main() {
       if (example) {
         const examplePath = resolveExampleFile(String(example));
         const state2 = importWorldState(examplePath, seed ?? 42, flags.scene);
+        const carryWarnings = flags.carry ? carryPartyIntoScene(loadWorldState(String(flags.carry)), state2) : [];
         saveWorldState(statePath, state2);
+        for (const w of carryWarnings) console.error(`[TRPG-CLI Warning] ${w}`);
         const summaryObj2 = {
           status: "initialized",
           fromExample: path3.basename(examplePath),
@@ -2652,7 +2688,26 @@ function main() {
       }
       system = system ?? "coc7e";
       if (system === "coc7e") {
-        const skillRaw = flags.skill;
+        const statePath2 = flags.state ?? DEFAULT_STATE_PATH;
+        const actorState = flags.actor ? loadWorldState(statePath2) : void 0;
+        const actorId = actorState ? resolveActorId(actorState, String(flags.actor)) : void 0;
+        const actor = actorState && actorId ? actorState.combatants[actorId] : void 0;
+        if (flags.actor && !actor) throw new Error(`--actor "${String(flags.actor)}" not found in ${statePath2}.`);
+        let skillRaw = flags.skill;
+        if (actor && skillRaw === void 0 && flags["skill-name"] !== void 0) {
+          const wanted = String(flags["skill-name"]).toLowerCase();
+          const found = Object.entries(actor.stats.skills ?? {}).find(([k]) => k.toLowerCase() === wanted);
+          if (!found) {
+            throw new Error(
+              `${actor.name} has no skill "${String(flags["skill-name"])}". Skills: ${Object.keys(actor.stats.skills ?? {}).join(", ")}`
+            );
+          }
+          skillRaw = found[1];
+        }
+        const sanOnly = actor && skillRaw === void 0 && flags["san-loss"] !== void 0;
+        if (actor && skillRaw === void 0 && !sanOnly) {
+          throw new Error("check --actor needs --skill, --skill-name or --san-loss.");
+        }
         const skill = Number(skillRaw ?? 65);
         if (skillRaw !== void 0 && !Number.isFinite(skill)) {
           throw new Error(
@@ -2664,7 +2719,7 @@ function main() {
         const push = Boolean(flags.push);
         const difficultyRaw = String(flags.difficulty ?? "regular").toLowerCase();
         const difficulty = difficultyRaw === "hard" ? "Hard" : difficultyRaw === "extreme" ? "Extreme" : "Regular";
-        const checkRes = resolveCoC7eCheck({
+        const checkRes = sanOnly ? void 0 : resolveCoC7eCheck({
           skill,
           bonusPenaltyDice: bonus,
           difficulty,
@@ -2674,18 +2729,18 @@ function main() {
           rng
         });
         let sanRes = void 0;
-        if (flags.san !== void 0) {
-          const san = Number(flags.san);
+        if (flags.san !== void 0 || actor && flags["san-loss"] !== void 0) {
+          const san = flags.san !== void 0 ? Number(flags.san) : actor.san;
           const sanLoss = flags["san-loss"] ?? "1/1d6";
-          const intScore = Number(flags.int ?? 65);
-          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, void 0, rng);
+          const intScore = Number(flags.int ?? actor?.stats.int ?? 65);
+          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, actor, rng);
+          if (actor && actorState) saveWorldState(statePath2, actorState);
         }
         const payload = { system: "coc7e", difficulty, skillCheck: checkRes, sanityCheck: sanRes };
         printOutput(
           payload,
           asJson,
-          `[CoC 7e \u6AA2\u5B9A] ${checkRes.narrative}${sanRes ? `
-[CoC 7e \u7406\u667A] ${sanRes.narrative}` : ""}`
+          [checkRes && `[CoC 7e \u6AA2\u5B9A] ${checkRes.narrative}`, sanRes && `[CoC 7e \u7406\u667A] ${sanRes.narrative}`].filter(Boolean).join("\n")
         );
       } else if (system === "pbta") {
         const moveName = flags.move ?? "Hack and Slash";
@@ -2843,6 +2898,8 @@ ${top3Text}`
         hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} \u81E8\u6642)` : ""}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
+        luck: c.stats.luck,
+        xp: c.stats.xp,
         pos: `(${c.position.x},${c.position.y})`,
         conditions: c.conditions,
         isAlive: c.isAlive
@@ -2865,7 +2922,7 @@ ${top3Text}`
         `\u56DE\u5408: Round ${state.round} / Turn ${state.turn} | \u4E0B\u4E00\u4F4D\u884C\u52D5\u8005: ${state.initiativeOrder[state.activeActorIndex]}`,
         `--- \u53C3\u6230\u8005\u72C0\u614B ---`,
         ...combatantSummaries.map(
-          (c) => `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}, \u5EA7\u6A19 ${c.pos}${c.conditions.length ? ` \u72C0\u614B:[${c.conditions.join(",")}]` : ""}${!c.isAlive ? " [\u5DF2\u9663\u4EA1]" : ""}`
+          (c) => `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}${c.luck !== void 0 ? `, Luck ${c.luck}` : ""}${c.xp !== void 0 ? `, XP ${c.xp}` : ""}, \u5EA7\u6A19 ${c.pos}${c.conditions.length ? ` \u72C0\u614B:[${c.conditions.join(",")}]` : ""}${!c.isAlive ? " [\u5DF2\u9663\u4EA1]" : ""}`
         ),
         `--- \u6709\u6548\u8A9E\u7FA9\u8A18\u61B6 (Active Semantic Facts: ${activeFacts.length}, \u5DF2\u8986\u5BEB\u6B77\u53F2\u4E8B\u5BE6: ${supersededFacts.length}) ---`,
         ...activeFacts.map((f) => `  * (${f.subject}, ${f.predicate}) => "${f.value}" [Turn ${f.turnCreated}]`),
@@ -2884,16 +2941,17 @@ Usage (cross-platform, works in bash / zsh / PowerShell / cmd):
 
 Commands:
   init       [--list] | --system <dnd5e|coc7e|pbta> --state <path> [--seed <num>] [--json]
-             --example <alias|path> [--scene <id>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
+             --example <alias|path> [--scene <id>] [--carry <prev-state>] --state <path>   (load bundled campaign by alias or file path; run 'init --list' to view all)
   roll       "<expression>" [--seed <num>] [--json]
   check      [--system <dnd5e|coc7e|pbta>] [--state <path>]
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
              CoC 7e               : --skill <0-100> [--bonus <-2..2>] [--difficulty regular|hard|extreme]
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
+                                    [--actor <id> [--skill-name <name>]]  (read skill/SAN/INT from the save; SAN loss is written back)
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
-  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N]  (quote '=N' values, e.g. --hp '=10': zsh expands a bare =10) [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

@@ -12,6 +12,7 @@ import { resolveCoC7eOpposedCombat, absorbTempHp, adjustDamageForType, applyCoC7
 import { DeterministicRNG } from '../src/engine/dice.ts';
 import { resolvePbtALastBreath } from '../src/engine/pbtaLastBreath.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
+import { carryPartyIntoScene } from '../src/engine/sceneCarry.ts';
 
 import { existsSync } from 'node:fs';
 
@@ -210,6 +211,40 @@ assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability')
     seen.add(r.tier);
   }
   assert.equal(seen.size, 3, 'all three outcomes occur');
+}
+
+// 13. Carrying the party into the next scene keeps their state, resets position, and swaps the enemies.
+{
+  const book = load('arkham-shadow');
+  const prev = campaignBookToWorldState(book, 7, 'scene-1-miskatonic-archive');
+  const partyIds = Object.values(prev.combatants).filter((c) => c.faction === 'party').map((c) => c.id);
+  const [hurt, dead, dyingId] = partyIds;
+  prev.combatants[hurt].hp = 3;
+  prev.combatants[hurt].position = { x: 9, y: 9 };
+  prev.combatants[dead].hp = 0;
+  prev.combatants[dead].isAlive = false;
+  prev.combatants[dyingId].conditions.push('dying');
+  const enemyBefore = Object.values(prev.combatants).filter((c) => c.faction !== 'party').map((c) => c.id);
+
+  const next = campaignBookToWorldState(book, 7, 'scene-2-riverside-boarding-house');
+  const newPositionOfHurt = next.combatants[hurt].position;
+  const warnings = carryPartyIntoScene(prev, next);
+
+  assert.equal(next.combatants[hurt].hp, 3, 'party HP carries over');
+  assert.deepEqual(next.combatants[hurt].position, newPositionOfHurt, 'position comes from the new scene');
+  assert.equal(next.combatants[dead].isAlive, false, 'dead stays dead');
+  assert.ok(!next.initiativeOrder.includes(dead), 'dead member takes no turns');
+  assert.ok(next.combatants[dyingId].conditions.includes('dying'), 'dying carries over');
+  assert.equal(warnings.length, 1, 'a dying member produces one warning');
+  for (const id of enemyBefore) assert.ok(!next.combatants[id], `old enemy ${id} left behind`);
+  assert.equal(next.episodicLog.at(-1)?.actionType, 'scene-transition');
+  assert.equal(next.rngSeed, prev.rngSeed);
+
+  const otherSystem = campaignBookToWorldState(load('crimson-crypt'), 7);
+  assert.throws(() => carryPartyIntoScene(prev, otherSystem), /rule system differs/);
+  const mismatched = campaignBookToWorldState(book, 7, 'scene-2-riverside-boarding-house');
+  delete mismatched.combatants[hurt];
+  assert.throws(() => carryPartyIntoScene(prev, mismatched), /party differs/);
 }
 
 console.log('engine-fixes: all assertions passed');
