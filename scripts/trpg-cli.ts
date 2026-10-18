@@ -134,6 +134,9 @@ function resolveExampleFile(requested: string): string {
   if (relativeFromAlias) {
     const p = path.resolve(rootDir, 'examples', relativeFromAlias);
     if (fs.existsSync(p)) return p;
+    // Scenarios added after the originals live in campaigns/ (flat, without the "campaign-" prefix).
+    const moved = path.resolve(rootDir, 'campaigns', path.basename(relativeFromAlias).replace(/^campaign-/, ''));
+    if (fs.existsSync(moved)) return moved;
   }
 
   // 4. Search inside examples/ and its system subdirectories

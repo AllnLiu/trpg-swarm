@@ -2478,6 +2478,8 @@ function resolveExampleFile(requested) {
   if (relativeFromAlias) {
     const p = path3.resolve(rootDir, "examples", relativeFromAlias);
     if (fs3.existsSync(p)) return p;
+    const moved = path3.resolve(rootDir, "campaigns", path3.basename(relativeFromAlias).replace(/^campaign-/, ""));
+    if (fs3.existsSync(moved)) return moved;
   }
   const examplesDir = path3.resolve(rootDir, "examples");
   const candidateBaseNames = [

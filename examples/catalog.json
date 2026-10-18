@@ -33,7 +33,7 @@
     "id": "campaign-goblin-hole",
     "title": "哥布林洞窟 (The Goblin Hole)",
     "system": "pbta",
-    "relativePath": "pbta/goblin-hole.json",
+    "relativePath": "../campaigns/goblin-hole.json",
     "alias": [
       "goblin-hole",
       "goblin",
@@ -51,7 +51,7 @@
     "id": "campaign-gilliard-mound",
     "title": "吉利亞德狼塚 (The Burial Mound of Gilliard Wolfclan)",
     "system": "dnd5e",
-    "relativePath": "dnd5e/gilliard-mound.json",
+    "relativePath": "../campaigns/gilliard-mound.json",
     "alias": [
       "gilliard-mound",
       "gilliard",
@@ -69,7 +69,7 @@
     "id": "campaign-randolph-carter",
     "title": "倫道夫·卡特的陳述：柏樹古墓 (The Statement of Randolph Carter)",
     "system": "coc7e",
-    "relativePath": "coc7e/randolph-carter.json",
+    "relativePath": "../campaigns/randolph-carter.json",
     "alias": [
       "randolph-carter",
       "carter",
@@ -85,7 +85,7 @@
     "id": "campaign-morgansfort",
     "title": "摩根堡：老島要塞 (Morgansfort: The Old Island Fortress)",
     "system": "dnd5e",
-    "relativePath": "dnd5e/morgansfort.json",
+    "relativePath": "../campaigns/morgansfort.json",
     "alias": [
       "morgansfort",
       "fort",
@@ -101,7 +101,7 @@
     "id": "campaign-colour-out-of-space",
     "title": "星之彩：枯萎荒原 (The Colour Out of Space)",
     "system": "coc7e",
-    "relativePath": "coc7e/colour-out-of-space.json",
+    "relativePath": "../campaigns/colour-out-of-space.json",
     "alias": [
       "colour-out-of-space",
       "colour",
@@ -117,7 +117,7 @@
     "id": "campaign-erich-zann",
     "title": "埃里克·贊之樂 (The Music of Erich Zann)",
     "system": "coc7e",
-    "relativePath": "coc7e/erich-zann.json",
+    "relativePath": "../campaigns/erich-zann.json",
     "alias": [
       "erich-zann",
       "zann",
@@ -133,7 +133,7 @@
     "id": "campaign-sky-chain",
     "title": "空之鎖鏈 (The Sky Chain)",
     "system": "pbta",
-    "relativePath": "pbta/sky-chain.json",
+    "relativePath": "../campaigns/sky-chain.json",
     "alias": [
       "sky-chain",
       "skychain"
