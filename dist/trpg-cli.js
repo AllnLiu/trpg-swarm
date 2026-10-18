@@ -2654,6 +2654,9 @@ function main() {
           skillRaw = found[1];
         }
         const sanOnly = actor && skillRaw === void 0 && flags["san-loss"] !== void 0;
+        if (actor && skillRaw === void 0 && !sanOnly) {
+          throw new Error("check --actor needs --skill, --skill-name or --san-loss.");
+        }
         const skill = Number(skillRaw ?? 65);
         if (skillRaw !== void 0 && !Number.isFinite(skill)) {
           throw new Error(

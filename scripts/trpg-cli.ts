@@ -302,6 +302,9 @@ function main(): void {
           skillRaw = found[1];
         }
         const sanOnly = actor && skillRaw === undefined && flags['san-loss'] !== undefined;
+        if (actor && skillRaw === undefined && !sanOnly) {
+          throw new Error('check --actor needs --skill, --skill-name or --san-loss.');
+        }
         const skill = Number(skillRaw ?? 65);
         if (skillRaw !== undefined && !Number.isFinite(skill)) {
           throw new Error(
