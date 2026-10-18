@@ -1863,7 +1863,8 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
       action.damageFormula ?? "1d6+1",
       true,
       rng,
-      action.attackBonus
+      // attackBonus is a percentage only for weapons imported with a named CoC skill (the built-in roster uses a d20 bonus).
+      action.cocSkillName ? action.attackBonus : void 0
     );
     let sanNarrative = "";
     if (actor.faction === "enemy" && target.faction === "party") {
