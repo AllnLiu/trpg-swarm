@@ -9,6 +9,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { campaignBookToWorldState } from '../src/engine/campaignImport.ts';
 import { resolveCoC7eOpposedCombat, absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
+import { DeterministicRNG } from '../src/engine/dice.ts';
+import { resolvePbtALastBreath } from '../src/engine/pbtaLastBreath.ts';
+import { absorbTempHp, adjustDamageForType, applyCoC7eDamage, resolveDnD5eSavingThrow } from '../src/engine/rulesEngine.ts';
 import { adjustCombatant, stepCombatTurn } from '../src/engine/stateStore.ts';
 
 import { existsSync } from 'node:fs';
@@ -178,7 +181,7 @@ for (let i = 0; i < 20 && faller.hp > 0; i++) {
 assert.equal(faller.hp, 0);
 assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability');
 
-// 10. Opposed combat reads the book's 'Fighting: Brawl' key and the weapon's own skill, not a hidden default.
+// 11. Opposed combat reads the book's 'Fighting: Brawl' key and the weapon's own skill, not a hidden default.
 // A roll of 01 always succeeds, so count wins over many trials: a 0% skill wins ~1%, the old 60% default ~60%.
 {
   const world = campaignBookToWorldState(load('arkham-shadow'), 3);
@@ -196,6 +199,16 @@ assert.equal(faller.deathSaves?.isStable, false, 'second drop resets stability')
   assert.ok(attackerWins() <= 20, "a 0% 'Fighting: Brawl' is used, not a default");
   a.stats.skills = { 'Fighting: Brawl': 99 };
   assert.ok(attackerWins(0) <= 20, 'an explicit weapon skill overrides the sheet');
+// 10. PbtA Last Breath is a flat 2d6 (no modifier): 10+ cheats death, 7-9 bargains, 6- dies.
+{
+  const seen = new Set<string>();
+  for (let seed = 1; seed <= 300; seed++) {
+    const r = resolvePbtALastBreath(new DeterministicRNG(seed));
+    assert.ok(r.total >= 2 && r.total <= 12, 'flat 2d6 range');
+    assert.equal(r.tier, r.total >= 10 ? '10+ (Cheat Death)' : r.total >= 7 ? '7-9 (Bargain)' : '6- (Death)');
+    seen.add(r.tier);
+  }
+  assert.equal(seen.size, 3, 'all three outcomes occur');
 }
 
 console.log('engine-fixes: all assertions passed');
