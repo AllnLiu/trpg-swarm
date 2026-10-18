@@ -596,9 +596,9 @@ function clearDowned(c) {
   c.conditions = c.conditions.filter((x) => x !== "unconscious" && x !== "dying");
   c.deathSaves = { successes: 0, failures: 0, isStable: true };
 }
-function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng()) {
-  const atkSkill = attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
-  const defSkill = defenseMode === "dodge" ? defender.stats.skills?.["Dodge"] ?? 45 : defender.stats.skills?.["Fighting (Brawl)"] ?? 50;
+function resolveCoC7eOpposedCombat(attacker, defender, defenseMode = "dodge", baseDamageFormula = "1d6+1", canImpale = true, rng = getGlobalRng(), attackSkill) {
+  const atkSkill = attackSkill ?? attacker.stats.skills?.["Fighting: Brawl"] ?? attacker.stats.skills?.["Fighting (Brawl)"] ?? 60;
+  const defSkill = defenseMode === "dodge" ? defender.stats.skills?.["Dodge"] ?? 45 : defender.stats.skills?.["Fighting: Brawl"] ?? defender.stats.skills?.["Fighting (Brawl)"] ?? 50;
   const attackerCheck = resolveCoC7eCheck({ skill: atkSkill, rng });
   const defenderCheck = resolveCoC7eCheck({ skill: defSkill, rng });
   let winner = "none";
@@ -1862,7 +1862,9 @@ function stepCombatTurn(state, overrideActorId, temperature = 0.65, preferredAct
       "dodge",
       action.damageFormula ?? "1d6+1",
       true,
-      rng
+      rng,
+      // attackBonus is a percentage only for weapons imported with a named CoC skill (the built-in roster uses a d20 bonus).
+      action.cocSkillName ? action.attackBonus : void 0
     );
     let sanNarrative = "";
     if (actor.faction === "enemy" && target.faction === "party") {
