@@ -2637,7 +2637,23 @@ function main() {
       }
       system = system ?? "coc7e";
       if (system === "coc7e") {
-        const skillRaw = flags.skill;
+        const statePath2 = flags.state ?? DEFAULT_STATE_PATH;
+        const actorState = flags.actor ? loadWorldState(statePath2) : void 0;
+        const actorId = actorState ? resolveActorId(actorState, String(flags.actor)) : void 0;
+        const actor = actorState && actorId ? actorState.combatants[actorId] : void 0;
+        if (flags.actor && !actor) throw new Error(`--actor "${String(flags.actor)}" not found in ${statePath2}.`);
+        let skillRaw = flags.skill;
+        if (actor && skillRaw === void 0 && flags["skill-name"] !== void 0) {
+          const wanted = String(flags["skill-name"]).toLowerCase();
+          const found = Object.entries(actor.stats.skills ?? {}).find(([k]) => k.toLowerCase() === wanted);
+          if (!found) {
+            throw new Error(
+              `${actor.name} has no skill "${String(flags["skill-name"])}". Skills: ${Object.keys(actor.stats.skills ?? {}).join(", ")}`
+            );
+          }
+          skillRaw = found[1];
+        }
+        const sanOnly = actor && skillRaw === void 0 && flags["san-loss"] !== void 0;
         const skill = Number(skillRaw ?? 65);
         if (skillRaw !== void 0 && !Number.isFinite(skill)) {
           throw new Error(
@@ -2649,7 +2665,7 @@ function main() {
         const push = Boolean(flags.push);
         const difficultyRaw = String(flags.difficulty ?? "regular").toLowerCase();
         const difficulty = difficultyRaw === "hard" ? "Hard" : difficultyRaw === "extreme" ? "Extreme" : "Regular";
-        const checkRes = resolveCoC7eCheck({
+        const checkRes = sanOnly ? void 0 : resolveCoC7eCheck({
           skill,
           bonusPenaltyDice: bonus,
           difficulty,
@@ -2659,18 +2675,18 @@ function main() {
           rng
         });
         let sanRes = void 0;
-        if (flags.san !== void 0) {
-          const san = Number(flags.san);
+        if (flags.san !== void 0 || actor && flags["san-loss"] !== void 0) {
+          const san = flags.san !== void 0 ? Number(flags.san) : actor.san;
           const sanLoss = flags["san-loss"] ?? "1/1d6";
-          const intScore = Number(flags.int ?? 65);
-          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, void 0, rng);
+          const intScore = Number(flags.int ?? actor?.stats.int ?? 65);
+          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, actor, rng);
+          if (actor && actorState) saveWorldState(statePath2, actorState);
         }
         const payload = { system: "coc7e", difficulty, skillCheck: checkRes, sanityCheck: sanRes };
         printOutput(
           payload,
           asJson,
-          `[CoC 7e \u6AA2\u5B9A] ${checkRes.narrative}${sanRes ? `
-[CoC 7e \u7406\u667A] ${sanRes.narrative}` : ""}`
+          [checkRes && `[CoC 7e \u6AA2\u5B9A] ${checkRes.narrative}`, sanRes && `[CoC 7e \u7406\u667A] ${sanRes.narrative}`].filter(Boolean).join("\n")
         );
       } else if (system === "pbta") {
         const moveName = flags.move ?? "Hack and Slash";
@@ -2871,6 +2887,7 @@ Commands:
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
              CoC 7e               : --skill <0-100> [--bonus <-2..2>] [--difficulty regular|hard|extreme]
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
+                                    [--actor <id> [--skill-name <name>]]  (read skill/SAN/INT from the save; SAN loss is written back)
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]

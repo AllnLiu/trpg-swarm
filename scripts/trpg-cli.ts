@@ -284,7 +284,24 @@ function main(): void {
       system = (system ?? 'coc7e') as RuleSystem;
 
       if (system === 'coc7e') {
-        const skillRaw = flags.skill;
+        // With --actor the skill, SAN and INT come from the save, and a SAN loss is written back to it.
+        const statePath = (flags.state as string) ?? DEFAULT_STATE_PATH;
+        const actorState = flags.actor ? loadWorldState(statePath) : undefined;
+        const actorId = actorState ? resolveActorId(actorState, String(flags.actor)) : undefined;
+        const actor = actorState && actorId ? actorState.combatants[actorId] : undefined;
+        if (flags.actor && !actor) throw new Error(`--actor "${String(flags.actor)}" not found in ${statePath}.`);
+        let skillRaw = flags.skill;
+        if (actor && skillRaw === undefined && flags['skill-name'] !== undefined) {
+          const wanted = String(flags['skill-name']).toLowerCase();
+          const found = Object.entries(actor.stats.skills ?? {}).find(([k]) => k.toLowerCase() === wanted);
+          if (!found) {
+            throw new Error(
+              `${actor.name} has no skill "${String(flags['skill-name'])}". Skills: ${Object.keys(actor.stats.skills ?? {}).join(', ')}`
+            );
+          }
+          skillRaw = found[1];
+        }
+        const sanOnly = actor && skillRaw === undefined && flags['san-loss'] !== undefined;
         const skill = Number(skillRaw ?? 65);
         if (skillRaw !== undefined && !Number.isFinite(skill)) {
           throw new Error(
@@ -301,29 +318,34 @@ function main(): void {
             : difficultyRaw === 'extreme'
               ? ('Extreme' as const)
               : ('Regular' as const);
-        const checkRes = resolveCoC7eCheck({
-          skill,
-          bonusPenaltyDice: bonus,
-          difficulty,
-          spendLuckToSucceed: luck !== undefined,
-          availableLuck: luck,
-          pushRoll: push,
-          rng,
-        });
+        const checkRes = sanOnly
+          ? undefined
+          : resolveCoC7eCheck({
+              skill,
+              bonusPenaltyDice: bonus,
+              difficulty,
+              spendLuckToSucceed: luck !== undefined,
+              availableLuck: luck,
+              pushRoll: push,
+              rng,
+            });
 
         let sanRes = undefined;
-        if (flags.san !== undefined) {
-          const san = Number(flags.san);
+        if (flags.san !== undefined || (actor && flags['san-loss'] !== undefined)) {
+          const san = flags.san !== undefined ? Number(flags.san) : actor!.san;
           const sanLoss = (flags['san-loss'] as string) ?? '1/1d6';
-          const intScore = Number(flags.int ?? 65);
-          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, undefined, rng);
+          const intScore = Number(flags.int ?? actor?.stats.int ?? 65);
+          sanRes = resolveCoC7eSanity(san, sanLoss, intScore, actor, rng);
+          if (actor && actorState) saveWorldState(statePath, actorState);
         }
 
         const payload = { system: 'coc7e', difficulty, skillCheck: checkRes, sanityCheck: sanRes };
         printOutput(
           payload,
           asJson,
-          `[CoC 7e 檢定] ${checkRes.narrative}${sanRes ? `\n[CoC 7e 理智] ${sanRes.narrative}` : ''}`
+          [checkRes && `[CoC 7e 檢定] ${checkRes.narrative}`, sanRes && `[CoC 7e 理智] ${sanRes.narrative}`]
+            .filter(Boolean)
+            .join('\n')
         );
       } else if (system === 'pbta') {
         const moveName = (flags.move as string) ?? 'Hack and Slash';
@@ -548,6 +570,7 @@ Commands:
              D&D 5e generic check : --dc <num> [--mod <num>] [--mode advantage|disadvantage|normal] [--label <str>]
              CoC 7e               : --skill <0-100> [--bonus <-2..2>] [--difficulty regular|hard|extreme]
                                     [--push] [--luck <num>] [--san <num>] [--san-loss <formula>] [--int <num>]
+                                    [--actor <id> [--skill-name <name>]]  (read skill/SAN/INT from the save; SAN loss is written back)
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
