@@ -326,8 +326,8 @@ function main(): void {
         const danger = Number(flags.danger ?? 3);
         const dummyState = createDefaultEncounter('pbta', seed ?? 42);
         const actor = dummyState.combatants.aria_vanguard;
-        const target = dummyState.combatants.cult_archon_boss;
-        const pbtaRes = resolvePbtAMove(actor, moveName, statMod, danger, target, '1d8+2', rng);
+        // No target: `check` is a bare 2d6 roll; the dummy boss made the output claim damage to a combatant that is not in the player's save.
+        const pbtaRes = resolvePbtAMove(actor, moveName, statMod, danger, undefined, '1d8+2', rng);
         printOutput(pbtaRes, asJson, `[PbtA 檢定] ${pbtaRes.narrative}`);
       } else {
         const dc = flags.dc !== undefined ? Number(flags.dc) : undefined;

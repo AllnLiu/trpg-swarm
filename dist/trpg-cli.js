@@ -2642,8 +2642,7 @@ function main() {
         const danger = Number(flags.danger ?? 3);
         const dummyState = createDefaultEncounter("pbta", seed ?? 42);
         const actor = dummyState.combatants.aria_vanguard;
-        const target = dummyState.combatants.cult_archon_boss;
-        const pbtaRes = resolvePbtAMove(actor, moveName, statMod, danger, target, "1d8+2", rng);
+        const pbtaRes = resolvePbtAMove(actor, moveName, statMod, danger, void 0, "1d8+2", rng);
         printOutput(pbtaRes, asJson, `[PbtA \u6AA2\u5B9A] ${pbtaRes.narrative}`);
       } else {
         const dc = flags.dc !== void 0 ? Number(flags.dc) : void 0;
