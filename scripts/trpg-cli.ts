@@ -518,6 +518,8 @@ function main(): void {
         hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} 臨時)` : ''}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
+        luck: c.stats.luck,
+        xp: c.stats.xp,
         pos: `(${c.position.x},${c.position.y})`,
         conditions: c.conditions,
         isAlive: c.isAlive,
@@ -543,7 +545,7 @@ function main(): void {
         `--- 參戰者狀態 ---`,
         ...combatantSummaries.map(
           (c) =>
-            `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}, 座標 ${c.pos}${c.conditions.length ? ` 狀態:[${c.conditions.join(',')}]` : ''}${!c.isAlive ? ' [已陣亡]' : ''}`
+            `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}${c.luck !== undefined ? `, Luck ${c.luck}` : ''}${c.xp !== undefined ? `, XP ${c.xp}` : ''}, 座標 ${c.pos}${c.conditions.length ? ` 狀態:[${c.conditions.join(',')}]` : ''}${!c.isAlive ? ' [已陣亡]' : ''}`
         ),
         `--- 有效語義記憶 (Active Semantic Facts: ${activeFacts.length}, 已覆寫歷史事實: ${supersededFacts.length}) ---`,
         ...activeFacts.map((f) => `  * (${f.subject}, ${f.predicate}) => "${f.value}" [Turn ${f.turnCreated}]`),
@@ -574,7 +576,7 @@ Commands:
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
-  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N]  (quote '=N' values, e.g. --hp '=10': zsh expands a bare =10) [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 

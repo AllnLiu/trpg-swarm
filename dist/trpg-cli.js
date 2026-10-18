@@ -2840,6 +2840,8 @@ ${top3Text}`
         hp: `${c.hp}/${c.maxHp}${c.tempHp ? ` (+${c.tempHp} \u81E8\u6642)` : ""}`,
         san: `${c.san}/${c.maxSan}`,
         ac: c.ac,
+        luck: c.stats.luck,
+        xp: c.stats.xp,
         pos: `(${c.position.x},${c.position.y})`,
         conditions: c.conditions,
         isAlive: c.isAlive
@@ -2862,7 +2864,7 @@ ${top3Text}`
         `\u56DE\u5408: Round ${state.round} / Turn ${state.turn} | \u4E0B\u4E00\u4F4D\u884C\u52D5\u8005: ${state.initiativeOrder[state.activeActorIndex]}`,
         `--- \u53C3\u6230\u8005\u72C0\u614B ---`,
         ...combatantSummaries.map(
-          (c) => `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}, \u5EA7\u6A19 ${c.pos}${c.conditions.length ? ` \u72C0\u614B:[${c.conditions.join(",")}]` : ""}${!c.isAlive ? " [\u5DF2\u9663\u4EA1]" : ""}`
+          (c) => `  [${c.faction.toUpperCase()}] ${c.name} (${c.id}): HP ${c.hp}, SAN ${c.san}, AC ${c.ac}${c.luck !== void 0 ? `, Luck ${c.luck}` : ""}${c.xp !== void 0 ? `, XP ${c.xp}` : ""}, \u5EA7\u6A19 ${c.pos}${c.conditions.length ? ` \u72C0\u614B:[${c.conditions.join(",")}]` : ""}${!c.isAlive ? " [\u5DF2\u9663\u4EA1]" : ""}`
         ),
         `--- \u6709\u6548\u8A9E\u7FA9\u8A18\u61B6 (Active Semantic Facts: ${activeFacts.length}, \u5DF2\u8986\u5BEB\u6B77\u53F2\u4E8B\u5BE6: ${supersededFacts.length}) ---`,
         ...activeFacts.map((f) => `  * (${f.subject}, ${f.predicate}) => "${f.value}" [Turn ${f.turnCreated}]`),
@@ -2891,7 +2893,7 @@ Commands:
              PbtA                 : --move <name> [--mod <num>] [--danger <1-5>]
   ai-decide  --state <path> --actor <actorId|alias> [--temperature <num>] [--seed <num>] [--json]
   step-turn  --state <path> [--actor <actorId|alias>] [--action-id <id>] [--target <actorId>] [--temperature <num>] [--json]
-  adjust     --state <path> --actor <id> [--hp +N|-N|=N] [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
+  adjust     --state <path> --actor <id> [--hp +N|-N|=N]  (quote '=N' values, e.g. --hp '=10': zsh expands a bare =10) [--temp-hp N] [--san +N|-N|=N] [--luck N] [--add-condition c1,c2] [--remove-condition c1]
   fact-set   --state <path> --subject <str> --predicate <str> (--value|--object) <str> [--category <type>] [--json]
   summary    --state <path> [--json]
 
