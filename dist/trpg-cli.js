@@ -2391,6 +2391,30 @@ function importWorldState(filePath, seed = 42, sceneOverride) {
   return campaignBookToWorldState(raw, seed, sceneOverride);
 }
 
+// src/engine/pbtaLastBreath.ts
+function resolvePbtALastBreath(rng = getGlobalRng()) {
+  const total = rollDice("2d6", rng).total;
+  if (total >= 10) {
+    return {
+      total,
+      tier: "10+ (Cheat Death)",
+      narrative: `\u5F4C\u7559\u4E4B\u969B (2d6 = ${total})\uFF1A\u301010+\u3011\u6B3A\u9A19\u4E86\u6B7B\u795E\uFF0C\u7015\u5371\u4F46\u7A69\u5B9A\uFF081 HP\uFF09\u3002`
+    };
+  }
+  if (total >= 7) {
+    return {
+      total,
+      tier: "7-9 (Bargain)",
+      narrative: `\u5F4C\u7559\u4E4B\u969B (2d6 = ${total})\uFF1A\u30107-9\u3011\u6B7B\u795E\u958B\u50F9\u3002\u63A5\u53D7\u4EA4\u6613\uFF08\u70D9\u5370\u3001\u4F7F\u547D\u6216\u4EE3\u50F9\uFF09\u5C31\u7A69\u5B9A\u4E0B\u4F86\uFF0C\u62D2\u7D55\u5247\u8E0F\u5165\u9ED1\u9580\u3002`
+    };
+  }
+  return {
+    total,
+    tier: "6- (Death)",
+    narrative: `\u5F4C\u7559\u4E4B\u969B (2d6 = ${total})\uFF1A\u30106-\u3011\u547D\u904B\u5DF2\u5B9A\uFF0C\u6B7B\u795E\u5E36\u8D70\u9748\u9B42\u3002`
+  };
+}
+
 // scripts/trpg-cli.ts
 var DEFAULT_STATE_PATH = "./campaign-state.json";
 var EXAMPLE_ALIASES = {
@@ -2640,6 +2664,11 @@ function main() {
         const moveName = flags.move ?? "Hack and Slash";
         const statMod = Number(flags.mod ?? 2);
         const danger = Number(flags.danger ?? 3);
+        if (/last breath|彌留|最後一息/i.test(moveName)) {
+          const lastBreath = resolvePbtALastBreath(rng);
+          printOutput(lastBreath, asJson, `[PbtA \u6AA2\u5B9A] ${lastBreath.narrative}`);
+          break;
+        }
         const dummyState = createDefaultEncounter("pbta", seed ?? 42);
         const actor = dummyState.combatants.aria_vanguard;
         const pbtaRes = resolvePbtAMove(actor, moveName, statMod, danger, void 0, "1d8+2", rng);
